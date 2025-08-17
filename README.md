@@ -46,13 +46,3 @@ Para que o sistema funcione corretamente, seus modelos `.docx` devem conter os s
 ## 📈 Dashboard
 
 O dashboard na página inicial (`/`) exibe a contagem de documentos gerados. Essa funcionalidade é baseada no arquivo `docs_log.txt`, que registra a data e hora de cada geração bem-sucedida. Não é necessário editar este arquivo manualmente.
-
-## 🤝 Contribuição
-
-Contribuições são bem-vindas! Se você tiver sugestões ou melhorias, sinta-se à vontade para abrir uma _issue_ ou enviar um _pull request_.
-
-1.  Faça um Fork do projeto.
-2.  Crie uma nova branch: `git checkout -b feature/sua-feature`
-3.  Faça o commit das suas mudanças: `git commit -m 'feat: Adiciona nova funcionalidade'`
-4.  Envie para a branch principal: `git push origin feature/sua-feature`
-5.  Abra um Pull Request.
