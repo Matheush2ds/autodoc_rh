@@ -5,8 +5,8 @@ from datetime import datetime, date
 from io import BytesIO
 from pathlib import Path
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash
-from docx import Document
 from werkzeug.utils import secure_filename
+from docxtpl import DocxTemplate
 
 # ==================== Configurações do Aplicativo ====================
 APP_TITLE = "Autodoc_Rh"
@@ -53,25 +53,18 @@ def count_documents():
 def sanitize_filename(name):
     return secure_filename(name.replace(" ", "_"))
 
-def fill_template(template_path, output_path, data_map):
+# Função para preencher template com docxtpl
+def fill_template_docxtpl(template_path, output_path, context):
     try:
-        document = Document(template_path)
-        for paragraph in document.paragraphs:
-            for placeholder, value in data_map.items():
-                paragraph.text = paragraph.text.replace(placeholder, str(value))
-        for table in document.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        for placeholder, value in data_map.items():
-                            paragraph.text = paragraph.text.replace(placeholder, str(value))
-        document.save(output_path)
+        doc = DocxTemplate(template_path)
+        doc.render(context)
+        doc.save(output_path)
         return True
     except Exception as e:
-        print(f"Erro ao preencher {template_path}: {e}")
+        print(f"Erro ao preencher {template_path} com docxtpl: {e}")
         return False
 
-def fill_all_templates(templates_dir, output_dir, data_map, filename_suffix=""):
+def fill_all_templates_docxtpl(templates_dir, output_dir, context, filename_suffix=""):
     generated_files = []
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     for template_name in os.listdir(templates_dir):
@@ -80,28 +73,25 @@ def fill_all_templates(templates_dir, output_dir, data_map, filename_suffix=""):
             base_name, ext = os.path.splitext(template_name)
             output_filename = f"{base_name}{filename_suffix}{ext}"
             output_path = os.path.join(output_dir, output_filename)
-            if fill_template(template_path, output_path, data_map):
+            if fill_template_docxtpl(template_path, output_path, context):
                 generated_files.append(output_path)
     return generated_files
 
 # ==================== Rotas Flask ====================
-# Rota para o Dashboard (página inicial)
 @app.route("/")
 @app.route("/dashboard")
 def dashboard():
     enviados_hoje, enviados_mes = count_documents()
     return render_template("dashboard.html", enviados_hoje=enviados_hoje, enviados_mes=enviados_mes)
 
-# Rota para o formulário de geração de documentos
 @app.route("/form")
 def form():
     return render_template("form.html")
 
-# Rota para gerar o documento
 @app.route("/generate", methods=["POST"])
 def generate():
     form_fields = ["name","cargo","cpf","rg","orgao","mes","empresa","setor","salario",
-                   "estadocivil","nacionalidade","endereco","cnpj","horario"]
+                   "estadocivil","nacionalidade","endereco","cnpj","horario","utiliza"]
     data = {f: request.form.get(f,"").strip() for f in form_fields}
 
     if not data["name"]:
@@ -110,29 +100,37 @@ def generate():
 
     current_date = datetime.now().strftime("%d/%m/%Y")
 
-    data_map = {
-        "<name_id>": data["name"],
-        "<cargo_id>": data["cargo"],
-        "<cpf_id>": data["cpf"],
-        "<rg_id>": data["rg"],
-        "<orgao_id>": data["orgao"],
-        "<mes_id>": data["mes"],
-        "<empresa_id>": data["empresa"],
-        "<setor_id>": data["setor"],
-        "<salario_id>": data["salario"],
-        "<estadocivil_id>": data["estadocivil"],
-        "<nacionalidade_id>": data["nacionalidade"],
-        "<endereco_id>": data["endereco"],
-        "<cnpj_id>": data["cnpj"],
-        "<horario_id>": data["horario"],
-        "<date_id>": current_date,
+    # Checkbox utiliza transporte
+    utiliza_val = data["utiliza"].lower()
+    utiliza = "X" if utiliza_val == "sim" else " "
+    nutiliza = "X" if utiliza_val != "sim" else " "
+
+    # Contexto para docxtpl (placeholders)
+    context = {
+        "name_id": data["name"],
+        "cargo_id": data["cargo"],
+        "cpf_id": data["cpf"],
+        "rg_id": data["rg"],
+        "orgao_id": data["orgao"],
+        "mes_id": data["mes"],
+        "empresa_id": data["empresa"],
+        "setor_id": data["setor"],
+        "salario_id": data["salario"],
+        "estadocivil_id": data["estadocivil"],
+        "nacionalidade_id": data["nacionalidade"],
+        "endereco_id": data["endereco"],
+        "cnpj_id": data["cnpj"],
+        "horario_id": data["horario"],
+        "date_id": current_date,
+        "utiliza_id": utiliza,
+        "nutiliza_id": nutiliza,
     }
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path(OUTPUT_DIR) / f"{timestamp}_{sanitize_filename(data['name'])}"
 
-    generated_files = fill_all_templates(TEMPLATES_DIR, str(run_dir), data_map,
-                                         filename_suffix=f"_{sanitize_filename(data['name'])}")
+    generated_files = fill_all_templates_docxtpl(TEMPLATES_DIR, str(run_dir), context,
+                                                 filename_suffix=f"_{sanitize_filename(data['name'])}")
 
     if not generated_files:
         flash("Nenhum .docx encontrado em 'docx_templates'.", "error")
@@ -159,6 +157,7 @@ def generate():
     flash("Documentos gerados com sucesso e prontos para download!", "success")
     return send_file(mem_zip, as_attachment=True, download_name=zip_name, mimetype="application/zip")
 
+# ==================== Inicialização ====================
 if __name__ == "__main__":
     if not os.path.exists(LOG_FILE):
         open(LOG_FILE, 'a').close()

@@ -32,18 +32,12 @@
                         <option value="LAGOA QUENTE HJR CONSTRUTORA E INCORPORADORA LTDA" data-cnpj="23.791.867/0001-08">LAGOA QUENTE HJR CONSTRUTORA E INCORPORADORA LTDA</option>
                         <option value="LAGOA THERMAS CLUBE TURISMO LAZER E ECOLOGIA" data-cnpj="05.620.609/0001-87">LAGOA THERMAS CLUBE TURISMO LAZER E ECOLOGIA</option>
                         <option value="LAGOA QUENTE BAR E RESTAURANTE LTDA" data-cnpj="07.894.032/0001-27">LAGOA QUENTE BAR E RESTAURANTE LTDA</option>
-                        <option value="LAGOA QUENTE RESTAURANTE ME" data-cnpj="21.827.890/0001-80">LAGOA QUENTE RESTAURANTE ME</option>
-                        <option value="ADMINISTRADORA LAGOA QUENTE SCP" data-cnpj="13.773.232/0001-24">ADMINISTRADORA LAGOA QUENTE SCP</option>
+                        <option value="LAGOA QUENTE RESTAURANTE ME" data-cnpj="21.827.890/0001-80">LAGOA QUENTE RESTAURANTE ME MATRIZ</option>
                         <option value="LAGOA FLAT BAR E RESTAURANTE LTDA" data-cnpj="14.750.870/0001-92">LAGOA FLAT BAR E RESTAURANTE LTDA</option>
-                        <option value="AMANDA SCHMITZ" data-cnpj="34.261684/0001-05">AMANDA SCHMITZ</option>
-                        <option value="LAGOA QUENTE EMPREENDIMENTOS IMOB. LTDA" data-cnpj="06.964.057/0001-97">LAGOA QUENTE EMPREENDIMENTOS IMOB. LTDA</option>
                         <option value="JARDINS DA LAGOA CONDO-RESORT" data-cnpj="36.194.997/0001-05">JARDINS DA LAGOA CONDO-RESORT</option>
-                        <option value="ADMINISTRADORA LAGOA QUENTE FLAT SERVICE SCP" data-cnpj="23.486.083/0001-76">ADMINISTRADORA LAGOA QUENTE FLAT SERVICE SCP</option>
                         <option value="CIA MELHORAMENTO DE CALDAS NOVAS" data-cnpj="01.638.832/0001-09">CIA MELHORAMENTO DE CALDAS NOVAS</option>
-                        <option value="LAGOA QUENTE RESTAURANTE LTDA" data-cnpj="21.827.890/0004-22">LAGOA QUENTE RESTAURANTE LTDA</option>
-                        <option value="CONDOMINIO LAGOA QUENTE FLAT HOTEL" data-cnpj="14.584.799/0001-15">CONDOMINIO LAGOA QUENTE FLAT HOTEL</option>
+                        <option value="LAGOA QUENTE RESTAURANTE LTDA" data-cnpj="21.827.890/0004-22">LAGOA QUENTE RESTAURANTE LTDA FILIAL</option>
                         <option value="LAGOA ECO TOWERS" data-cnpj="44.672.366/0001-82">LAGOA ECO TOWERS</option>
-                        <option value="JN MANUTENCAO E SERVICOS LTDA" data-cnpj="13.019.739/0001-97">JN MANUTENCAO E SERVICOS LTDA</option>
                     </select>
                     <label for="empresa">Empresa*</label>
                 </div>
@@ -56,6 +50,14 @@
                 <div class="form-group">
                     <input type="text" id="horario" name="horario" placeholder="Ex: 8 às 18:00">
                     <label for="horario">Horário de Trabalho</label>
+                </div>
+
+                <div class="form-group">
+                    <label for="utiliza">Utiliza Transporte?</label>
+                    <select id="utiliza" name="utiliza" required>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                    </select>
                 </div>
             </div>
 
@@ -81,7 +83,9 @@
                         ('endereco_id','Endereço'),
                         ('cnpj_id','CNPJ'),
                         ('horario_id','Horário de Trabalho'),
-                        ('date_id','Data Atual')
+                        ('date_id','Data Atual'),
+                        ('utiliza_id','Utiliza (Sim)'),
+                        ('nutiliza_id','Não Utiliza (Não)')
                     ] %}
                     <li><code>&lt;{{ ph }}&gt;</code>: {{ desc }}</li>
                     {% endfor %}
