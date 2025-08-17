@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+  rh-docx-filler:
+    build: .
+    container_name: rh-docx-filler
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"     # acesse via http://<host>:8000
+    volumes:
+      # Modelos .docx no HOST mapeados para dentro do container
+      - ./app/docx_templates:/app/docx_templates:rw
+      # Saída local (útil para debug)
+      - ./out:/app/out:rw
+      # Montagem da pasta de rede (host) para dentro do container
+      # 1) Primeiro, no servidor (host), monte a rede (ex.: /mnt/rh_docs).
+      # 2) Abaixo, mapeie para /network/rh_docs dentro do container.
+      - /mnt/rh_docs:/network/rh_docs:rw
+    restart: unless-stopped

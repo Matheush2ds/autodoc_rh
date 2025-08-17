@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Documentos - Grupo Lagoa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="{{ url_for('static', filename='logo_rh.png') }}" alt="Logo RH" class="sidebar-logo">
+                <div class="sidebar-user">
+                    <p>Bem-vindo(a)!</p>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i>Dashboard</a></li>
+                    <li><a href="{{ url_for('form') }}"><i class="fas fa-file-alt"></i>Novo Documento</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#"><i class="fas fa-sign-out-alt"></i>Sair</a>
+            </div>
+        </aside>
+        
+        <main class="content-area">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    <footer class="footer">
+        <div class="footer-container">
+            <p class="footer-text">
+                Sistema de automatizaçãode documentos do RH / DP usando seus modelos <code>.docx</code>.
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

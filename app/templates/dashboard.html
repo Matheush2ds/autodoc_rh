@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard-container">
+    <h1 class="page-title">Dashboard</h1>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-paper-plane"></i></div>
+            <div class="stat-info">
+                <p class="stat-label">Documentos enviados hoje</p>
+                <p class="stat-value">{{ enviados_hoje }}</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="stat-info">
+                <p class="stat-label">Documentos enviados no mês</p>
+                <p class="stat-value">{{ enviados_mes }}</p>
+            </div>
+        </div>
+        </div>
+    
+</div>
+{% endblock %}
