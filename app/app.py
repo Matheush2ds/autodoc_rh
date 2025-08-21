@@ -1,24 +1,24 @@
 import os
 import shutil
 import zipfile
-from datetime import datetime, date
+import locale
+from datetime import datetime, date, timedelta
 from io import BytesIO
 from pathlib import Path
-from flask import Flask, render_template, request, send_file, redirect, url_for, flash
+from collections import defaultdict
+from flask import Flask, render_template, request, send_file, redirect, url_for, flash, session
 from werkzeug.utils import secure_filename
 from docxtpl import DocxTemplate
 
-# ==================== Configurações do Aplicativo ====================
 APP_TITLE = "Autodoc_Rh"
 TEMPLATES_DIR = "docx_templates"
 OUTPUT_DIR = "generated_docs"
-OUTPUT_NETWORK_DIR = None  # Defina pasta de rede se houver
+OUTPUT_NETWORK_DIR = None
 LOG_FILE = 'docs_log.txt'
 
 app = Flask(__name__)
 app.secret_key = "uma_chave_secreta_aqui"
 
-# ==================== Funções de Dashboard e Log ====================
 def log_document():
     """Registra a geração de um documento no arquivo de log."""
     with open(LOG_FILE, 'a') as f:
@@ -49,12 +49,28 @@ def count_documents():
                     
     return hoje_count, mes_count
 
-# ==================== Funções auxiliares ====================
+def count_documents_last_7_days():
+    """Conta os documentos gerados nos últimos 7 dias."""
+    count = 0
+    hoje = datetime.now().date()
+    
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, 'r') as f:
+            for line in f:
+                try:
+                    log_date = datetime.fromisoformat(line.strip()).date()
+                    if hoje - log_date < timedelta(days=7):
+                        count += 1
+                except ValueError:
+                    continue
+    return count
+
 def sanitize_filename(name):
+    """Limpa o nome do arquivo para torná-lo seguro."""
     return secure_filename(name.replace(" ", "_"))
 
-# Função para preencher template com docxtpl
 def fill_template_docxtpl(template_path, output_path, context):
+    """Preenche um único template DOCX com os dados fornecidos."""
     try:
         doc = DocxTemplate(template_path)
         doc.render(context)
@@ -65,6 +81,7 @@ def fill_template_docxtpl(template_path, output_path, context):
         return False
 
 def fill_all_templates_docxtpl(templates_dir, output_dir, context, filename_suffix=""):
+    """Preenche todos os templates DOCX em um diretório."""
     generated_files = []
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     for template_name in os.listdir(templates_dir):
@@ -77,21 +94,36 @@ def fill_all_templates_docxtpl(templates_dir, output_dir, context, filename_suff
                 generated_files.append(output_path)
     return generated_files
 
-# ==================== Rotas Flask ====================
+def formatar_data_por_extenso(data_str):
+    """Formata uma data para o formato por extenso em português."""
+    try:
+        locale.setlocale(locale.LC_TIME, 'pt_BR.utf8')
+        data_obj = datetime.strptime(data_str, '%d/%m/%Y')
+        return data_obj.strftime('%d de %B de %Y')
+    except (ValueError, locale.Error):
+        return data_str
+
 @app.route("/")
 @app.route("/dashboard")
 def dashboard():
+    """Rota para o painel de controle."""
     enviados_hoje, enviados_mes = count_documents()
-    return render_template("dashboard.html", enviados_hoje=enviados_hoje, enviados_mes=enviados_mes)
+    enviados_7d = count_documents_last_7_days()
+    return render_template("dashboard.html", 
+                           enviados_hoje=enviados_hoje, 
+                           enviados_mes=enviados_mes,
+                           enviados_7d=enviados_7d)
 
 @app.route("/form")
 def form():
+    """Rota para o formulário de geração de documentos."""
     return render_template("form.html")
 
 @app.route("/generate", methods=["POST"])
 def generate():
+    """Rota para processar o formulário e gerar os documentos."""
     form_fields = ["name","cargo","cpf","rg","orgao","mes","empresa","setor","salario",
-                   "estadocivil","nacionalidade","endereco","cnpj","horario","utiliza"]
+                   "estadocivil","nacionalidade","endereco","cnpj","horario","utiliza", "data_contratacao"]
     data = {f: request.form.get(f,"").strip() for f in form_fields}
 
     if not data["name"]:
@@ -99,13 +131,12 @@ def generate():
         return redirect(url_for("form"))
 
     current_date = datetime.now().strftime("%d/%m/%Y")
+    data_formatada = formatar_data_por_extenso(data.get("data_contratacao", ""))
 
-    # Checkbox utiliza transporte
     utiliza_val = data["utiliza"].lower()
     utiliza = "X" if utiliza_val == "sim" else " "
     nutiliza = "X" if utiliza_val != "sim" else " "
 
-    # Contexto para docxtpl (placeholders)
     context = {
         "name_id": data["name"],
         "cargo_id": data["cargo"],
@@ -122,6 +153,7 @@ def generate():
         "cnpj_id": data["cnpj"],
         "horario_id": data["horario"],
         "date_id": current_date,
+        "data_contratacao_id": data_formatada,
         "utiliza_id": utiliza,
         "nutiliza_id": nutiliza,
     }
@@ -157,7 +189,13 @@ def generate():
     flash("Documentos gerados com sucesso e prontos para download!", "success")
     return send_file(mem_zip, as_attachment=True, download_name=zip_name, mimetype="application/zip")
 
-# ==================== Inicialização ====================
+@app.route("/logout")
+def logout():
+    """Rota para sair da sessão."""
+    session.clear()
+    flash("Você saiu com sucesso.", "success")
+    return redirect(url_for("dashboard"))
+
 if __name__ == "__main__":
     if not os.path.exists(LOG_FILE):
         open(LOG_FILE, 'a').close()

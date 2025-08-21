@@ -41,7 +41,7 @@ Para que o sistema funcione corretamente, seus modelos `.docx` devem conter os s
 - `<endereco_id>`: Endereço
 - `<cnpj_id>`: CNPJ
 - `<horario_id>`: Horário de Trabalho
-- `<date_id>`: Data Atual
+- `<date_id>`: Data de Contratação
 
 ## 📈 Dashboard
 

@@ -14,8 +14,20 @@
                     ('rg','RG'),
                     ('orgao','Órgão Emissor'),
                     ('mes','Mês de Contratação'),
-                    ('setor','Setor'),
-                    ('salario','Salário'),
+                    ('setor','Setor')
+                ] %}
+                <div class="form-group">
+                    <input type="text" id="{{ field }}" name="{{ field }}" required placeholder=" ">
+                    <label for="{{ field }}">{{ placeholder }}</label>
+                </div>
+                {% endfor %}
+
+                <div class="form-group">
+                    <input type="text" id="salario" name="salario" oninput="maskMoney(event)" required placeholder=" ">
+                    <label for="salario">Salário</label>
+                </div>
+
+                {% for field, placeholder in [
                     ('estadocivil','Estado Civil'),
                     ('nacionalidade','Nacionalidade'),
                     ('endereco','Endereço')
@@ -25,6 +37,11 @@
                     <label for="{{ field }}">{{ placeholder }}</label>
                 </div>
                 {% endfor %}
+
+                <div class="form-group">
+                    <input type="text" id="data_contratacao" name="data_contratacao" required placeholder=" ">
+                    <label for="data_contratacao">Data de Contratação*</label>
+                </div>
 
                 <div class="form-group">
                     <select id="empresa" name="empresa" required onchange="updateCNPJ()">
@@ -84,6 +101,7 @@
                         ('cnpj_id','CNPJ'),
                         ('horario_id','Horário de Trabalho'),
                         ('date_id','Data Atual'),
+                        ('data_contratacao_id', 'Data de Contratação'),
                         ('utiliza_id','Utiliza (Sim)'),
                         ('nutiliza_id','Não Utiliza (Não)')
                     ] %}
@@ -111,16 +129,29 @@ function maskCPF(input){
     input.value = v;
 }
 
-function maskRG(input){
-    let v = input.value.replace(/\D/g,'');
-    v = v.replace(/(\d{2})(\d)/,'$1.$2');
-    v = v.replace(/(\d{3})(\d)/,'$1.$2');
-    v = v.replace(/(\d{3})(\d{1})$/,'$1-$2');
-    input.value = v;
+function maskMoney(event) {
+    const input = event.target;
+    let value = input.value.replace(/\D/g, '');
+
+    // Formata o valor como moeda
+    value = (value / 100).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    });
+
+    // Atualiza o valor do campo de input
+    input.value = value;
 }
 
+const dateInput = document.getElementById('data_contratacao');
+dateInput.addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    v = v.replace(/^(\d{2})(\d)/, '$1/$2');
+    v = v.replace(/(\d{2})(\d)/, '$1/$2');
+    e.target.value = v;
+});
+
 document.getElementById("cpf").addEventListener("input", function(){ maskCPF(this); });
-document.getElementById("rg").addEventListener("input", function(){ maskRG(this); });
 </script>
 
 {% endblock %}
