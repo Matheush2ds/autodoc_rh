@@ -2,28 +2,46 @@
 {% block content %}
 <div class="dashboard-container">
     <h1 class="page-title">Dashboard</h1>
+
     <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-paper-plane"></i></div>
+        <div class="stat-card today" title="Quantidade de documentos enviados hoje">
+            <div class="stat-icon" aria-label="Documentos hoje"><i class="fas fa-file-circle-check"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Documentos enviados hoje</p>
-                <p class="stat-value">{{ enviados_hoje }}</p>
+                <p class="stat-label">Enviados Hoje</p>
+                <p class="stat-value" data-value="{{ enviados_hoje }}">0</p>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+
+        <div class="stat-card week" title="Quantidade de documentos enviados nos últimos 7 dias">
+            <div class="stat-icon" aria-label="Últimos 7 dias"><i class="fas fa-calendar-week"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Documentos enviados no mês</p>
-                <p class="stat-value">{{ enviados_mes }}</p>
+                <p class="stat-label">Últimos 7 dias</p>
+                <p class="stat-value" data-value="{{ enviados_7d }}">0</p>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+
+        <div class="stat-card month" title="Quantidade de documentos enviados no mês atual">
+            <div class="stat-icon" aria-label="Mês atual"><i class="fas fa-calendar-check"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Documentos enviados nos últimos 7 dias</p>
-                <p class="stat-value">{{ enviados_7d }}</p>
+                <p class="stat-label">Mês Atual</p>
+                <p class="stat-value" data-value="{{ enviados_mes }}">0</p>
             </div>
         </div>
     </div>
+
+    <!-- CONTAINER PARA O GRÁFICO -->
+    <div class="chart-container card">
+        <h2 class="chart-title">Documentos por Empresa</h2>
+        <div class="chart-wrapper">
+            <canvas id="companyChart"></canvas>
+        </div>
+    </div>
 </div>
+
+<!-- Bibliotecas -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    const companyData = {{ company_data|tojson|safe }};
+</script>
 {% endblock %}

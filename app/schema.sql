@@ -1,0 +1,6 @@
+CREATE TABLE documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    employee_name TEXT NOT NULL,
+    company_name TEXT NOT NULL
+);
