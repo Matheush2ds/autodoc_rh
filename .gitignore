@@ -1,0 +1,12 @@
+# Arquivos de cache do Python
+app/__pycache__/
+__pycache__/
+
+# Documentos gerados pelo usuário
+app/generated_docs/
+
+# Banco de dados (apenas o schema.sql deve ser rastreado)
+app/log.db
+
+# Arquivos de ambiente (se você usar)
+.env
