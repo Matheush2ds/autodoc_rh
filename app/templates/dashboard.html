@@ -1,8 +1,11 @@
 {% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <h1 class="page-title">Dashboard</h1>
 
+    <h2 class="section-title">Resumo Geral</h2>
     <div class="stats-grid">
         <div class="stat-card today" title="Quantidade de documentos enviados hoje">
             <div class="stat-icon" aria-label="Documentos hoje"><i class="fas fa-file-circle-check"></i></div>
@@ -27,21 +30,109 @@
                 <p class="stat-value" data-value="{{ enviados_mes }}">0</p>
             </div>
         </div>
+
+        <div class="stat-card total" title="Total de documentos gerados no sistema">
+            <div class="stat-icon" aria-label="Total gerado"><i class="fas fa-archive"></i></div>
+            <div class="stat-info">
+                <p class="stat-label">Total Gerado</p>
+                <p class="stat-value" data-value="{{ total_gerado }}">0</p>
+            </div>
+        </div>
+    </div>
+    
+    <h2 class="section-title">Relação por Tipo de Contrato</h2>
+    <div class="stats-grid">
+        <div class="stat-card regular" title="Total de documentos gerados para Funcionários Regulares">
+            <div class="stat-icon" aria-label="Funcionário Regular"><i class="fas fa-file-alt"></i></div>
+            <div class="stat-info">
+                <p class="stat-label">Funcionário Regular</p>
+                <p class="stat-value" data-value="{{ type_data.get('regular', 0) }}">0</p>
+            </div>
+        </div>
+        <div class="stat-card driver" title="Total de documentos gerados para Motoristas">
+            <div class="stat-icon" aria-label="Motorista"><i class="fas fa-truck"></i></div>
+            <div class="stat-info">
+                <p class="stat-label">Motoristas</p>
+                <p class="stat-value" data-value="{{ type_data.get('motorista', 0) }}">0</p>
+            </div>
+        </div>
+        <div class="stat-card apprentice" title="Total de documentos gerados para Menor Aprendiz">
+            <div class="stat-icon" aria-label="Menor Aprendiz"><i class="fas fa-user-graduate"></i></div>
+            <div class="stat-info">
+                <p class="stat-label">Menor Aprendiz</p>
+                <p class="stat-value" data-value="{{ type_data.get('aprendiz', 0) }}">0</p>
+            </div>
+        </div>
     </div>
 
-    <!-- CONTAINER PARA O GRÁFICO -->
-    <div class="chart-container card">
-        <h2 class="chart-title">Documentos por Empresa</h2>
-        <div class="chart-wrapper">
-            <canvas id="companyChart"></canvas>
+
+    <div class="chart-grid">
+        <div class="chart-container card">
+            <h2 class="chart-title">Atividade Recente (Últimos 7 dias)</h2>
+            <div class="chart-wrapper">
+                <canvas id="dailyActivityChart"></canvas>
+            </div>
         </div>
+        
+        <div class="chart-container card">
+            <h2 class="chart-title">Documentos por Empresa</h2>
+            <div class="chart-wrapper">
+                <canvas id="companyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="history-header">
+        <h2 class="section-title">Histórico de Documentos Gerados</h2>
+        <div class="export-buttons">
+            <a href="{{ url_for('download_history_csv') }}" class="btn-export-csv" title="Baixar relação completa em CSV">
+                <i class="fas fa-file-csv"></i> Exportar CSV
+            </a>
+            <a href="{{ url_for('download_history_pdf') }}" class="btn-export-pdf" title="Baixar relação completa em PDF">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </a>
+        </div>
+    </div>
+    
+    <div class="card history-card">
+        {% if history_data %}
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Data / Hora</th>
+                    <th>Funcionário</th>
+                    <th>Empresa</th>
+                    <th>Tipo</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in history_data %}
+                <tr>
+                    <td>{{ doc.gen_date }}</td>
+                    <td>{{ doc.employee_name }}</td>
+                    <td>{{ doc.company_name }}</td>
+                    <td>{{ doc.employee_type.capitalize() }}</td>
+                    <td>
+                        <a href="{{ url_for('download_zip', filename=doc.zip_filename) }}" class="btn-download" title="Baixar novamente">
+                            <i class="fas fa-download"></i> Baixar
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Nenhum documento foi gerado ainda.</p>
+        {% endif %}
     </div>
 </div>
 
-<!-- Bibliotecas -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script>
     const companyData = {{ company_data|tojson|safe }};
+    const dailyData = {{ daily_activity_data|tojson|safe }};
 </script>
 {% endblock %}

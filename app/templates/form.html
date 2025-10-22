@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Formulário{% endblock %}
+{% block title %}{{ page_title | default('Formulário') }}{% endblock %}
 
 {% block content %}
 <div class="form-container">
     <div class="card form-card">
-        <h1 class="card-title">Gerador de Documentos</h1>
+        <h1 class="card-title">{{ page_title | default('Gerador de Documentos') }}</h1>
         <p class="card-description">Preencha os dados do colaborador para gerar o documento.</p>
 
         <form method="post" action="{{ url_for('generate') }}">
-            <!-- Seção de Dados Pessoais -->
+            
+            <input type="hidden" name="employee_type" value="{{ employee_type | default('regular') }}">
             <div class="form-section">
                 <h2 class="section-title">Dados Pessoais</h2>
                 <div class="form-grid">
@@ -43,7 +44,6 @@
                 </div>
             </div>
 
-            <!-- Seção de Dados Contratuais -->
             <div class="form-section">
                 <h2 class="section-title">Dados Contratuais</h2>
                 <div class="form-grid">
@@ -74,7 +74,6 @@
                 </div>
             </div>
 
-            <!-- Seção da Empresa -->
             <div class="form-section">
                 <h2 class="section-title">Empresa</h2>
                 <div class="form-grid">
@@ -146,7 +145,6 @@
     </div>
 </div>
 
-<!-- SCRIPTS RESTAURADOS -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -188,7 +186,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const empresaSelect = document.getElementById('empresa');
     if (empresaSelect) {
         empresaSelect.addEventListener('change', updateCNPJ);
-        // Chamar uma vez no início para preencher o CNPJ se já houver uma empresa selecionada
         updateCNPJ(); 
     }
 
@@ -216,4 +213,3 @@ function maskMoney(event) {
 </script>
 
 {% endblock %}
-

@@ -3,18 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Título dinâmico: Cada página pode definir seu próprio título -->
     <title>{% block title %}Gerador RH{% endblock %} - RH Lagoa</title>
 
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     
-    <!-- Pré-conexão com domínios de fontes para otimizar o carregamento -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        .sidebar-nav .sidebar-header-title {
+            padding: 10px 25px;
+            margin-top: 10px;
+            font-size: 0.8rem; /* 13px */
+            font-weight: 600;
+            color: #8a99b5; /* Cor cinza-azulada clara */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            pointer-events: none; /* Não é clicável */
+        }
+    </style>
 </head>
 <body>
     <div class="main-layout" id="mainLayout">
@@ -26,7 +37,6 @@
                 <div class="sidebar-user">
                     <p>Seja bem-vindo(a)</p>
                 </div>
-                <!-- O botão agora controla a navegação, o que é mais semântico -->
                 <button class="menu-toggle" id="menuToggle" aria-label="Abrir/fechar menu" aria-controls="sidebarNav" aria-expanded="false">
                     <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
@@ -40,13 +50,33 @@
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <li class="{% if request.endpoint == 'form' %}active{% endif %}">
-                        <a href="{{ url_for('form') }}">
+                    
+                    <li class="sidebar-header-title">
+                        <span>Gerar Documentos</span>
+                    </li>
+
+                    <li class="{% if request.endpoint == 'form_regular' %}active{% endif %}">
+                        <a href="{{ url_for('form_regular') }}">
                             <i class="fas fa-file-alt" aria-hidden="true"></i> 
-                            <span>Novo Documento</span>
+                            <span>Funcionário Regular</span>
                         </a>
                     </li>
-                </ul>
+                    
+                    <li class="{% if request.endpoint == 'form_motorista' %}active{% endif %}">
+                        <a href="{{ url_for('form_motorista') }}">
+                            <i class="fas fa-truck" aria-hidden="true"></i> 
+                            <span>Motoristas</span>
+                        </a>
+                    </li>
+
+                    <li class="{% if request.endpoint == 'form_aprendiz' %}active{% endif %}">
+                        <a href="{{ url_for('form_aprendiz') }}">
+                            <i class="fas fa-user-graduate" aria-hidden="true"></i> 
+                            <span>Menor Aprendiz</span>
+                        </a>
+                    </li>
+
+                    </ul>
             </nav>
 
             <footer class="sidebar-footer">
@@ -76,13 +106,11 @@
     </div>
 
     <footer class="footer">
-        <!-- O ano agora é injetado pelo Flask, nunca ficará desatualizado -->
         <p class="footer-text">
             &copy; {{ current_year }} RH Lagoa - Sistema de automatização de documentos.
         </p>
     </footer>
 
-    <!-- O atributo 'defer' faz o script carregar sem bloquear a renderização da página -->
     <script>
         // JavaScript encapsulado para não poluir o escopo global
         document.addEventListener('DOMContentLoaded', () => {

@@ -9,10 +9,13 @@ python-docx==1.1.0
 # Motor de templates usado pelo Flask e docxtpl
 Jinja2==3.1.4
 
+# === Geração de Relatórios ===
+reportlab==4.2.0
+
 # === Servidor de Produção ===
 # Servidor WSGI leve e compatível com Windows
 waitress==3.0.0
 
 # === Utilitários e Configuração ===
-# Para carregar variáveis de ambiente de um arquivo .env
+# Para carregar variáveis de ambiente de um arquivo .env 
 python-dotenv==1.0.1
