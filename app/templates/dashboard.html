@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <h1 class="page-title">Dashboard</h1>
+    <h1 class="page-title"><i class="fas fa-chart-pie"></i> Dashboard</h1>
 
     <h2 class="section-title">Resumo Geral</h2>
     <div class="stats-grid">
@@ -43,7 +43,7 @@
     <h2 class="section-title">Relação por Tipo de Contrato</h2>
     <div class="stats-grid">
         <div class="stat-card regular" title="Total de documentos gerados para Funcionários Regulares">
-            <div class="stat-icon" aria-label="Funcionário Regular"><i class="fas fa-file-alt"></i></div>
+            <div class="stat-icon" aria-label="Funcionário Regular"><i class="fas fa-briefcase"></i></div>
             <div class="stat-info">
                 <p class="stat-label">Funcionário Regular</p>
                 <p class="stat-value" data-value="{{ type_data.get('regular', 0) }}">0</p>
@@ -65,7 +65,6 @@
         </div>
     </div>
 
-
     <div class="chart-grid">
         <div class="chart-container card">
             <h2 class="chart-title">Atividade Recente (Últimos 7 dias)</h2>
@@ -81,7 +80,6 @@
             </div>
         </div>
     </div>
-
 
     <div class="history-header">
         <h2 class="section-title">Histórico de Documentos Gerados</h2>
@@ -116,7 +114,8 @@
                     <td>{{ doc.employee_type.capitalize() }}</td>
                     <td>
                         <a href="{{ url_for('download_zip', filename=doc.zip_filename) }}" class="btn-download" title="Baixar novamente">
-                            <i class="fas fa-download"></i> Baixar
+                            <i class="fas fa-download"></i>
+                            <span>Baixar</span>
                         </a>
                     </td>
                 </tr>
@@ -124,7 +123,10 @@
             </tbody>
         </table>
         {% else %}
-        <p>Nenhum documento foi gerado ainda.</p>
+        <div class="history-empty">
+            <i class="fas fa-folder-open"></i>
+            <p>Nenhum documento foi gerado ainda.</p>
+        </div>
         {% endif %}
     </div>
 </div>
