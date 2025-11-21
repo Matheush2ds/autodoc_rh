@@ -3,63 +3,62 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <h1 class="page-title"><i class="fas fa-chart-pie"></i> Dashboard</h1>
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-chart-pie"></i> Visão Geral</h1>
+    </div>
 
-    <h2 class="section-title">Resumo Geral</h2>
+    <h2 class="section-title">Resumo de Envios</h2>
     <div class="stats-grid">
-        <div class="stat-card today" title="Quantidade de documentos enviados hoje">
-            <div class="stat-icon" aria-label="Documentos hoje"><i class="fas fa-file-circle-check"></i></div>
+        <div class="stat-card today">
+            <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Enviados Hoje</p>
+                <p class="stat-label">Hoje</p>
                 <p class="stat-value" data-value="{{ enviados_hoje }}">0</p>
             </div>
         </div>
-
-        <div class="stat-card week" title="Quantidade de documentos enviados nos últimos 7 dias">
-            <div class="stat-icon" aria-label="Últimos 7 dias"><i class="fas fa-calendar-week"></i></div>
+        <div class="stat-card week">
+            <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Últimos 7 dias</p>
+                <p class="stat-label">7 Dias</p>
                 <p class="stat-value" data-value="{{ enviados_7d }}">0</p>
             </div>
         </div>
-
-        <div class="stat-card month" title="Quantidade de documentos enviados no mês atual">
-            <div class="stat-icon" aria-label="Mês atual"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-card month">
+            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
             <div class="stat-info">
                 <p class="stat-label">Mês Atual</p>
                 <p class="stat-value" data-value="{{ enviados_mes }}">0</p>
             </div>
         </div>
-
-        <div class="stat-card total" title="Total de documentos gerados no sistema">
-            <div class="stat-icon" aria-label="Total gerado"><i class="fas fa-archive"></i></div>
+        <div class="stat-card total">
+            <div class="stat-icon"><i class="fas fa-archive"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Total Gerado</p>
+                <p class="stat-label">Total Histórico</p>
                 <p class="stat-value" data-value="{{ total_gerado }}">0</p>
             </div>
         </div>
     </div>
     
-    <h2 class="section-title">Relação por Tipo de Contrato</h2>
+    <h2 class="section-title">Por Tipo de Contrato</h2>
     <div class="stats-grid">
-        <div class="stat-card regular" title="Total de documentos gerados para Funcionários Regulares">
-            <div class="stat-icon" aria-label="Funcionário Regular"><i class="fas fa-briefcase"></i></div>
+        <div class="stat-card regular">
+            <div class="stat-icon"><i class="fas fa-briefcase"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Funcionário Regular</p>
+                <p class="stat-label">Regular</p>
                 <p class="stat-value" data-value="{{ type_data.get('regular', 0) }}">0</p>
             </div>
         </div>
-        <div class="stat-card driver" title="Total de documentos gerados para Motoristas">
-            <div class="stat-icon" aria-label="Motorista"><i class="fas fa-truck"></i></div>
+        <div class="stat-card driver">
+            <div class="stat-icon"><i class="fas fa-truck"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Motoristas</p>
+                <p class="stat-label">Motorista</p>
                 <p class="stat-value" data-value="{{ type_data.get('motorista', 0) }}">0</p>
             </div>
         </div>
-        <div class="stat-card apprentice" title="Total de documentos gerados para Menor Aprendiz">
-            <div class="stat-icon" aria-label="Menor Aprendiz"><i class="fas fa-user-graduate"></i></div>
+        <div class="stat-card apprentice">
+            <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
             <div class="stat-info">
-                <p class="stat-label">Menor Aprendiz</p>
+                <p class="stat-label">Aprendiz</p>
                 <p class="stat-value" data-value="{{ type_data.get('aprendiz', 0) }}">0</p>
             </div>
         </div>
@@ -67,7 +66,7 @@
 
     <div class="chart-grid">
         <div class="chart-container card">
-            <h2 class="chart-title">Atividade Recente (Últimos 7 dias)</h2>
+            <h2 class="chart-title">Atividade Recente</h2>
             <div class="chart-wrapper">
                 <canvas id="dailyActivityChart"></canvas>
             </div>
@@ -82,50 +81,52 @@
     </div>
 
     <div class="history-header">
-        <h2 class="section-title">Histórico de Documentos Gerados</h2>
+        <h2 class="section-title">Histórico Recente</h2>
         <div class="export-buttons">
-            <a href="{{ url_for('download_history_csv') }}" class="btn-export-csv" title="Baixar relação completa em CSV">
-                <i class="fas fa-file-csv"></i> Exportar CSV
+            <a href="{{ url_for('download_history_csv') }}" class="btn-export-csv">
+                <i class="fas fa-file-csv"></i> CSV
             </a>
-            <a href="{{ url_for('download_history_pdf') }}" class="btn-export-pdf" title="Baixar relação completa em PDF">
-                <i class="fas fa-file-pdf"></i> Exportar PDF
+            <a href="{{ url_for('download_history_pdf') }}" class="btn-export-pdf">
+                <i class="fas fa-file-pdf"></i> PDF
             </a>
         </div>
     </div>
     
-    <div class="card history-card">
+    <div class="card history-card" style="padding: 0; overflow: hidden;">
         {% if history_data %}
-        <table class="history-table">
-            <thead>
-                <tr>
-                    <th>Data / Hora</th>
-                    <th>Funcionário</th>
-                    <th>Empresa</th>
-                    <th>Tipo</th>
-                    <th>Ação</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for doc in history_data %}
-                <tr>
-                    <td>{{ doc.gen_date }}</td>
-                    <td>{{ doc.employee_name }}</td>
-                    <td>{{ doc.company_name }}</td>
-                    <td>{{ doc.employee_type.capitalize() }}</td>
-                    <td>
-                        <a href="{{ url_for('download_zip', filename=doc.zip_filename) }}" class="btn-download" title="Baixar novamente">
-                            <i class="fas fa-download"></i>
-                            <span>Baixar</span>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Funcionário</th>
+                        <th>Empresa</th>
+                        <th>Tipo</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in history_data %}
+                    <tr>
+                        <td>{{ doc.gen_date }}</td>
+                        <td>{{ doc.employee_name }}</td>
+                        <td>{{ doc.company_name }}</td>
+                        <td>{{ doc.employee_type.capitalize() }}</td>
+                        <td>
+                            <a href="{{ url_for('download_zip', filename=doc.zip_filename) }}" class="btn-download">
+                                <i class="fas fa-download"></i>
+                                <span>Baixar</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
         <div class="history-empty">
             <i class="fas fa-folder-open"></i>
-            <p>Nenhum documento foi gerado ainda.</p>
+            <p>Nenhum documento gerado ainda.</p>
         </div>
         {% endif %}
     </div>

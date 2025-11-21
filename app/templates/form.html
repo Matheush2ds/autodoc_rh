@@ -3,10 +3,11 @@
 
 {% block content %}
 <div class="form-container">
-    <div class="card form-card">
-        <h1 class="card-title">{{ page_title | default('Gerador de Documentos') }}</h1>
-        <p class="card-description">Preencha os dados do colaborador para gerar o documento.</p>
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-file-signature"></i> {{ page_title | default('Gerador de Documentos') }}</h1>
+    </div>
 
+    <div class="card form-card">
         <form method="post" action="{{ url_for('generate') }}">
             
             <input type="hidden" name="employee_type" value="{{ employee_type | default('regular') }}">
@@ -40,7 +41,7 @@
                     </div>
                     <div class="form-group full-width">
                         <input type="text" id="endereco" name="endereco" placeholder=" ">
-                        <label for="endereco">Endereço</label>
+                        <label for="endereco">Endereço Completo</label>
                     </div>
                 </div>
             </div>
@@ -54,7 +55,7 @@
                     </div>
                     <div class="form-group">
                         <input type="text" id="mes" name="mes" placeholder=" ">
-                        <label for="mes">Mês de Contratação</label>
+                        <label for="mes">Mês de Referência</label>
                     </div>
                     <div class="form-group">
                         <input type="text" id="setor" name="setor" placeholder=" ">
@@ -62,14 +63,14 @@
                     </div>
                     <div class="form-group">
                         <input type="text" id="salario" name="salario" oninput="maskMoney(event)" placeholder=" ">
-                        <label for="salario">Salário</label>
+                        <label for="salario">Salário (R$)</label>
                     </div>
                     <div class="form-group">
                         <input type="date" id="data_contratacao" name="data_contratacao" required placeholder=" ">
-                        <label for="data_contratacao">Data de Contratação*</label>
+                        <label for="data_contratacao">Data de Admissão*</label>
                     </div>
                     <div class="form-group">
-                        <input type="text" id="horario" name="horario" placeholder="Ex: 8 às 18:00">
+                        <input type="text" id="horario" name="horario" placeholder="Ex: 08:00 às 18:00">
                         <label for="horario">Horário de Trabalho</label>
                     </div>
                 </div>
@@ -77,7 +78,7 @@
 
             {% if employee_type == 'motorista' %}
             <div class="form-section">
-                <h2 class="section-title">Dados de Motorista</h2>
+                <h2 class="section-title">Habilitação (Motorista)</h2>
                 <div class="form-grid">
                     <div class="form-group">
                         <input type="text" id="cnh" name="cnh" placeholder=" ">
@@ -101,10 +102,11 @@
                 </div>
             </div>
             {% endif %}
+
             <div class="form-section">
-                <h2 class="section-title">Empresa</h2>
+                <h2 class="section-title">Dados da Empresa</h2>
                 <div class="form-grid">
-                    <div class="form-group">
+                    <div class="form-group full-width">
                         <select id="empresa" name="empresa" required>
                             <option value="" disabled selected></option>
                             <option value="LAGOA QUENTE HJR CONSTRUTORA E INCORPORADORA LTDA" data-cnpj="23.791.867/0001-08">LAGOA QUENTE HJR CONSTRUTORA E INCORPORADORA LTDA</option>
@@ -117,46 +119,46 @@
                             <option value="LAGOA QUENTE RESTAURANTE LTDA" data-cnpj="21.827.890/0004-22">LAGOA QUENTE RESTAURANTE LTDA FILIAL</option>
                             <option value="LAGOA ECO TOWERS" data-cnpj="44.672.366/0001-82">LAGOA ECO TOWERS</option>
                         </select>
-                        <label for="empresa">Empresa*</label>
+                        <label for="empresa">Selecione a Empresa*</label>
                     </div>
                     <div class="form-group">
                         <input type="text" id="cnpj" name="cnpj" required placeholder=" ">
                         <label for="cnpj">CNPJ*</label>
                     </div>
-                    <div class="form-group full-width">
+                    <div class="form-group">
                         <select id="utiliza" name="utiliza" required>
                              <option value="sim" selected>Sim</option>
                              <option value="nao">Não</option>
                         </select>
-                        <label for="utiliza">Utiliza Transporte?</label>
+                        <label for="utiliza">Utiliza Vale Transporte?</label>
                     </div>
                 </div>
             </div>
 
             <button type="submit" class="submit-btn">
-                <i class="fas fa-file-alt"></i> Gerar Documentos
+                <i class="fas fa-file-contract"></i> Gerar Documentação
             </button>
         </form>
 
         <div class="placeholder-details-container">
             <details>
                 <summary>
-                    <i class="fas fa-plus"></i> Ver Placeholders
+                    <i class="fas fa-code"></i> Referência de Variáveis (Docs)
                 </summary>
-                <ul class="placeholder-list">
+                <ul class="placeholder-list" style="margin-top: 15px;">
                     {% for ph, desc in [
                         ('name_id','Nome Completo'), ('cargo_id','Cargo'), ('cpf_id','CPF'),
-                        ('rg_id','RG'), ('orgao_id','Órgão Emissor'), ('mes_id','Mês de Contratação'),
-                        ('empresa_id','Empresa'), ('setor_id','Setor'), ('salario_id','Salário (R$ 1.234,56)'),
-                        ('salarioextenso_id','Salário por Extenso'), ('cnh_id','Nº da CNH'), ('categoria_id','Categoria CNH'),
+                        ('rg_id','RG'), ('orgao_id','Órgão Emissor'), ('mes_id','Mês Ref.'),
+                        ('empresa_id','Empresa'), ('setor_id','Setor'), ('salario_id','Salário Num.'),
+                        ('salarioextenso_id','Salário Extenso'), ('cnh_id','CNH'), ('categoria_id','Cat. CNH'),
                         ('estadocivil_id','Estado Civil'), ('nacionalidade_id','Nacionalidade'),
-                        ('endereco_id','Endereço'), ('cnpj_id','CNPJ'), ('horario_id','Horário de Trabalho'),
-                        ('date_id', 'Data de Contratação (22/08/2025)'),
-                        ('datetoday_id','Data de Hoje (08 de Setembro de 2025)'),
-                        ('utiliza_id','Utiliza Transporte (Marca "X")'),
-                        ('nutiliza_id','Não Utiliza Transporte (Marca "X")')
+                        ('endereco_id','Endereço'), ('cnpj_id','CNPJ'), ('horario_id','Horário'),
+                        ('date_id', 'Data Admissão Extenso'),
+                        ('datetoday_id','Data Hoje Extenso'),
+                        ('utiliza_id','Utiliza VT (X)'),
+                        ('nutiliza_id','Não Utiliza VT (X)')
                     ] %}
-                    <li><code>{{ '{{' }}{{ ph }}{{ '}}' }}</code>: {{ desc }}</li>
+                    <li><code>{{ '{{' }}{{ ph }}{{ '}}' }}</code> : {{ desc }}</li>
                     {% endfor %}
                 </ul>
             </details>
@@ -170,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const select = document.getElementById('empresa');
         const cnpjInput = document.getElementById('cnpj');
         const selectedOption = select.options[select.selectedIndex];
-        if (cnpjInput) { cnpjInput.value = selectedOption?.dataset?.cnpj || ""; }
+        if (cnpjInput && selectedOption) { cnpjInput.value = selectedOption.dataset.cnpj || ""; }
     }
     function maskCPF(input){
         let v = input.value.replace(/\D/g,'');
@@ -193,24 +195,28 @@ document.addEventListener('DOMContentLoaded', function() {
         if (remainder !== parseInt(cpf.substring(10,11))) return false;
         return true;
     }
+    
     const empresaSelect = document.getElementById('empresa');
     if (empresaSelect) {
         empresaSelect.addEventListener('change', updateCNPJ);
         updateCNPJ(); 
     }
+    
     const cpfInput = document.getElementById("cpf");
     if (cpfInput) {
         cpfInput.addEventListener("input", function(){
             maskCPF(this);
             const val = this.value.replace(/\D/g,'');
+            // Feedback visual no border color usando as variáveis CSS
             if(val.length === 11){
-                this.style.borderColor = validateCPF(val) ? '' : 'var(--feedback-error)';
+                this.style.borderColor = validateCPF(val) ? 'var(--feedback-success)' : 'var(--feedback-error)';
             } else {
                 this.style.borderColor = '';
             }
         });
     }
 });
+
 function maskMoney(event) {
     const input = event.target;
     let value = input.value.replace(/\D/g, '');
@@ -218,5 +224,4 @@ function maskMoney(event) {
     input.value = value;
 }
 </script>
-
 {% endblock %}
