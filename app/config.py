@@ -3,18 +3,15 @@ from dataclasses import dataclass
 
 @dataclass
 class Settings:
-    # --- Caminhos da Aplicação ---
-    # Usando os caminhos relativos como padrão, que já funcionam
-    TEMPLATES_DIR: str = os.environ.get("TEMPLATES_DIR", "docx_templates")
-    OUTPUT_DIR: str    = os.environ.get("OUTPUT_DIR", "generated_docs")
-    DB_FILE: str       = os.environ.get("DB_FILE", "log.db")
-
-    # --- UI ---
-    APP_TITLE: str = os.environ.get("APP_TITLE", "Autodoc RH")
+    # Caminhos absolutos baseados no Dockerfile
+    TEMPLATES_DIR: str = os.environ.get("TEMPLATES_DIR", "/app/docx_templates")
+    OUTPUT_DIR: str    = os.environ.get("OUTPUT_DIR", "/app/generated_docs")
+    DB_FILE: str       = os.environ.get("DB_FILE", "/app/log.db")
     
-    # --- Chave Secreta ---
-    # Tenta ler do ambiente, se não, usa uma chave padrão (ideal é definir no ambiente)
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", "sua-chave-secreta-super-segura-aqui")
+    # A pasta estática será onde o React buildado está
+    STATIC_FOLDER: str = os.environ.get("STATIC_FOLDER", "../frontend/dist")
 
-# Instância única das configurações para ser importada por outros arquivos
+    APP_TITLE: str = "Autodoc RH"
+    SECRET_KEY: str = os.environ.get("SECRET_KEY", "chave-secreta-padrao")
+
 settings = Settings()

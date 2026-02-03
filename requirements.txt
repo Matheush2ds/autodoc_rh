@@ -1,21 +1,6 @@
-# === Web Framework ===
-Flask==3.0.3
-
-# === Geração de Documentos ===
-# Biblioteca principal para preencher os templates .docx
-docxtpl==0.16.8
-# Dependência da docxtpl para manipulação de arquivos Word
-python-docx==1.1.0
-# Motor de templates usado pelo Flask e docxtpl
-Jinja2==3.1.4
-
-# === Geração de Relatórios ===
-reportlab==4.2.0
-
-# === Servidor de Produção ===
-# Servidor WSGI leve e compatível com Windows
-waitress==3.0.0
-
-# === Utilitários e Configuração ===
-# Para carregar variáveis de ambiente de um arquivo .env 
-python-dotenv==1.0.1
+Flask==2.0.1
+Werkzeug==2.0.1
+docxtpl==0.16.6
+num2words==0.5.10
+reportlab==3.6.8
+flask-cors==4.0.0

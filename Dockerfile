@@ -1,30 +1,45 @@
-FROM python:3.12-slim
+# Estágio 1: Build do Frontend (React)
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app_frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# Estágio 2: Backend (Python)
+FROM python:3.9-slim
 
 WORKDIR /app
 
-# Evita prompts e reduz camada
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Dependências do sistema para python-docx/lxml
+# Instala dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libxml2-dev libxslt1-dev \
+    gcc \
+    libc-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Dependências Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia app
-COPY app/ /app/
+# Copia código fonte do Backend
+COPY app/ ./app/
 
-# Diretórios úteis
-RUN mkdir -p /app/docx_templates /app/out
+# --- CORREÇÃO IMPORTANTE AQUI ---
+# Copia a pasta de templates da sua máquina para dentro do container
+COPY docx_templates/ ./docx_templates/
 
-# Variáveis padrão (podem ser sobrescritas no compose)
-ENV PORT=8000
+# Cria pasta de saída
+RUN mkdir -p generated_docs
 
-EXPOSE 8000
+# Copia o build do React
+COPY --from=frontend-builder /app_frontend/dist ./frontend/dist
 
-# Gunicorn em produção (1 worker sync suficiente; aumente conforme demanda)
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:8000", "app:app"]
+# Variáveis de Ambiente
+ENV TEMPLATES_DIR=/app/docx_templates
+ENV OUTPUT_DIR=/app/generated_docs
+ENV DB_FILE=/app/log.db
+ENV FLASK_APP=app/app.py
+
+EXPOSE 5000
+
+CMD ["python", "app/app.py"]
