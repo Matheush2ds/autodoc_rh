@@ -17,7 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from num2words import num2words
 
-# --- CORREÇÃO AQUI: Importação direta ---
+# Importação das configurações
 from config import settings 
 
 app = Flask(__name__, static_folder=settings.STATIC_FOLDER, static_url_path='/')
@@ -257,6 +257,12 @@ def api_generate():
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         sanitized_name = sanitize_filename(data['name'])
+        
+        # Garante que a pasta de saída existe
+        if not os.path.exists(settings.OUTPUT_DIR):
+            os.makedirs(settings.OUTPUT_DIR)
+
+        # Pasta temporária para esta geração
         run_dir = Path(settings.OUTPUT_DIR) / f"{timestamp}_{sanitized_name}"
         
         folder_name_map = {'regular': 'regular', 'motorista': 'motorista', 'aprendiz': 'menor_aprendiz'}
@@ -279,20 +285,31 @@ def api_generate():
         if os.path.exists(run_dir):
             shutil.rmtree(run_dir)
         
+        # Loga no banco e garante que o zip_name está correto para download
         log_document(data["name"], data["empresa"], employee_type, zip_name)
+        
+        print(f"Sucesso! Arquivo gerado em: {zip_path}")
         return send_file(zip_path, as_attachment=True, download_name=zip_name)
 
     except Exception as e:
+        print(f"ERRO API: {e}")
         if 'run_dir' in locals() and os.path.exists(run_dir):
             shutil.rmtree(run_dir)
         return jsonify({"error": str(e)}), 500
 
 @app.route("/download_zip/<path:filename>")
 def download_zip(filename):
+    # Segurança para evitar paths maliciosos
     safe_filename = secure_filename(filename)
-    file_path = Path(settings.OUTPUT_DIR) / safe_filename
-    if not file_path.is_file():
-        return jsonify({"error": "Arquivo não encontrado"}), 404
+    
+    # Caminho completo do arquivo dentro do container
+    file_path = os.path.join(settings.OUTPUT_DIR, safe_filename)
+    
+    # Verifica se o arquivo REALMENTE existe no disco antes de tentar enviar
+    if not os.path.exists(file_path):
+        print(f"ERRO DE DOWNLOAD: Arquivo não encontrado no caminho físico: {file_path}")
+        return jsonify({"error": "Arquivo físico não encontrado. Ele pode ter sido excluído do servidor."}), 404
+        
     return send_from_directory(settings.OUTPUT_DIR, safe_filename, as_attachment=True)
 
 @app.errorhandler(404)
@@ -300,7 +317,12 @@ def not_found(e):
     return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == "__main__":
+    # Garante que as pastas essenciais existam ao iniciar
+    if not os.path.exists(settings.OUTPUT_DIR):
+        os.makedirs(settings.OUTPUT_DIR)
+        
     if not os.path.exists(settings.DB_FILE):
         init_db()
     migrate_db()
+    
     app.run(host="0.0.0.0", port=5000)

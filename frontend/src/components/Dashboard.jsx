@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { FileText, Users, Briefcase, Clock, Zap, Award, Truck, GraduationCap, Building2 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { FileText, Users, Briefcase, Clock, Zap, Award, Truck, GraduationCap, Building2, Download } from 'lucide-react';
 
 // Card Principal (Topo)
 const MainStatCard = ({ title, value, icon: Icon, color, bg, subtext }) => (
@@ -39,10 +39,9 @@ const TypeCard = ({ label, count, icon: Icon, gradient, percentage }) => (
   </div>
 );
 
-// Componente Visual de Lista de Empresas (Substitui o gráfico feio)
+// Componente Visual de Lista de Empresas
 const CompanyListItem = ({ name, count, total, index }) => {
     const percentage = Math.round((count / total) * 100);
-    // Cores para os avatares das empresas
     const colors = ['bg-blue-100 text-blue-600', 'bg-amber-100 text-amber-600', 'bg-emerald-100 text-emerald-600', 'bg-purple-100 text-purple-600', 'bg-rose-100 text-rose-600'];
     const colorClass = colors[index % colors.length];
 
@@ -201,6 +200,65 @@ export default function Dashboard() {
                 />
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* --- AQUI ESTÁ A SEÇÃO QUE FALTAVA --- */}
+      {/* Tabela de Histórico Recente */}
+      <div className="bg-white rounded-3xl shadow-card border border-slate-100/60 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+             <h2 className="text-lg font-bold text-navy-900">Histórico Recente</h2>
+        </div>
+        <div className="overflow-x-auto">
+             <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-400 tracking-wider">
+                    <tr>
+                        <th className="p-5 pl-8">Data/Hora</th>
+                        <th className="p-5">Colaborador</th>
+                        <th className="p-5">Empresa</th>
+                        <th className="p-5">Categoria</th>
+                        <th className="p-5 text-right pr-8">Ação</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {data.history.map((doc) => (
+                        <tr key={doc.id} className="hover:bg-slate-50/80 transition-colors group">
+                            <td className="p-5 pl-8 font-medium text-slate-500">{doc.gen_date}</td>
+                            <td className="p-5 font-semibold text-navy-900">{doc.employee_name}</td>
+                            <td className="p-5">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                    {doc.company_name.length > 25 ? doc.company_name.substring(0, 25) + '...' : doc.company_name}
+                                </span>
+                            </td>
+                            <td className="p-5">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize
+                                    ${doc.employee_type === 'regular' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 
+                                      doc.employee_type === 'motorista' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 
+                                      'bg-purple-50 text-purple-700 border border-purple-100'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                        doc.employee_type === 'regular' ? 'bg-blue-500' : 
+                                        doc.employee_type === 'motorista' ? 'bg-amber-500' : 'bg-purple-500'
+                                    }`}></span>
+                                    {doc.employee_type}
+                                </span>
+                            </td>
+                            <td className="p-5 text-right pr-8">
+                                <a 
+                                    href={`/download_zip/${doc.zip_filename}`} 
+                                    className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold text-white bg-navy-900 hover:bg-gold-500 transition-colors shadow-sm gap-2"
+                                >
+                                    <Download size={14} /> Baixar
+                                </a>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+             </table>
+             {data.history.length === 0 && (
+                <div className="p-8 text-center text-slate-400">
+                    Nenhum documento gerado recentemente.
+                </div>
+             )}
         </div>
       </div>
     </div>
