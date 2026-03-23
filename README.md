@@ -1,73 +1,124 @@
-# 📄 Autodoc RH - Enterprise Edition
+# Autodoc RH
 
-**Autodoc RH** é uma plataforma corporativa de automação de documentos para Recursos Humanos. O sistema utiliza uma arquitetura moderna de microsserviços para gerar contratos, termos e fichas de admissão instantaneamente, com um painel de controle executivo para monitoramento de produtividade.
+O Autodoc RH é um sistema interno focado em automatizar a criação de documentos para o setor de Recursos Humanos. Ele foi desenvolvido com uma arquitetura de microsserviços para agilizar a geração de contratos, termos e fichas de admissão, e inclui um painel de controle para a equipe monitorar o uso da ferramenta.
 
-![Status](https://img.shields.io/badge/Status-Active-emerald)
-![Docker](https://img.shields.io/badge/Docker-Native-blue)
-![React](https://img.shields.io/badge/Frontend-React%20%2B%20Tailwind-cyan)
-![Python](https://img.shields.io/badge/Backend-Flask%20API-yellow)
+Status: Ativo | Frontend: React + Tailwind | Backend: Flask API | Infra: Docker Native
 
 ---
 
-## ✨ Funcionalidades Premium (v2.0)
+## Principais Funcionalidades (v2.0)
 
-- **🖥️ Interface Enterprise:** Design responsivo e sofisticado (Tema Navy & Gold), desenvolvido com **React** e **Tailwind CSS**.
-- **📊 Dashboard Executivo:**
-  - **Métricas de Produtividade:** Cálculo automático de tempo economizado pela equipe.
-  - **Visualização de Dados:** Gráficos interativos e listas visuais de volume por empresa.
-  - **Histórico:** Acompanhamento em tempo real dos últimos documentos gerados.
-- **⚡ Geração Instantânea:** Processamento de múltiplos modelos `.docx` simultâneos, entregues em formato `.zip`.
-- **🏢 Múltiplos Fluxos:** Suporte nativo para:
-  - Funcionário Regular (CLT)
-  - Motoristas (Com validação de CNH)
-  - Menor Aprendiz
-- **🤖 Automação Inteligente:** Preenchimento automático de CNPJ, conversão de valores monetários para extenso e formatação de datas.
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
-### **Frontend**
-- **React.js (Vite):** Performance e modularidade.
-- **Tailwind CSS:** Estilização moderna e responsiva.
-- **Recharts:** Gráficos de dados profissionais.
-- **Lucide React:** Ícones vetoriais leves.
-
-### **Backend**
-- **Python 3.9 + Flask:** API RESTful robusta.
-- **Docxtpl (Jinja2):** Motor de renderização de templates Word.
-- **Num2Words:** Escrita automática de salários por extenso.
-- **SQLite:** Persistência leve e rápida.
-
-### **Infraestrutura**
-- **Docker & Docker Compose:** Ambiente isolado e reprodutível (Build Multi-stage).
+- **Interface Atualizada:** Visual mais limpo e responsivo (tema Navy & Gold), construído com React e Tailwind CSS.
+- **Dashboard Administrativo:**
+  - **Métricas:** Calcula automaticamente o tempo que a equipe economizou.
+  - **Gráficos:** Mostra o volume de documentos gerados por empresa.
+  - **Histórico:** Log em tempo real dos últimos arquivos gerados.
+- **Geração em Lote:** O sistema consegue processar vários templates `.docx` ao mesmo tempo e faz o download de tudo compactado em um arquivo `.zip`.
+- **Fluxos de Contratação:** A plataforma atende a diferentes cenários:
+  - CLT (padrão)
+  - Motoristas (exige e valida dados de CNH)
+  - Jovem Aprendiz
+- **Automações:** Preenchimento automático do CNPJ das empresas cadastradas, conversão de valores numéricos de salário para texto por extenso e formatação automática de datas.
 
 ---
 
-## ⚙️ Instalação e Execução
+## Stacks
 
-O projeto é "Docker Native". Você não precisa instalar Node.js ou Python na sua máquina, apenas o Docker.
+**Frontend**
+- React.js (via Vite)
+- Tailwind CSS
+- Recharts (para os gráficos)
+- Lucide React (ícones)
 
-### Pré-requisitos
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado.
+**Backend**
+- Python 3.9 com Flask
+- Docxtpl (usa Jinja2 para ler e injetar dados no Word)
+- Num2Words (escreve os salários por extenso)
+- SQLite (banco de dados leve)
 
-### Passo a Passo
+**Infra**
+- Docker e Docker Compose (Multi-stage build)
 
-1. **Clone o repositório e entre na pasta:**
-   ```bash
-   git clone <seu-repositorio>
-   cd autodoc_rh
-Organize seus Templates:Coloque seus arquivos .docx nas pastas correspondentes dentro de docx_templates/:docx_templates/regular/ (Ex: Contratos padrão)docx_templates/motorista/ (Ex: Termos de responsabilidade de veículo)docx_templates/menor_aprendiz/ (Ex: Contratos de aprendizagem)Inicie o Sistema:No terminal (dentro da pasta do projeto), execute:Bashdocker-compose up --build
-(Aguarde alguns minutos na primeira execução para o build do React).Acesse:Abra seu navegador em: http://localhost:5000📝 Guia de Variáveis para Templates (.docx)Para que o sistema preencha seus documentos automaticamente, utilize as tags abaixo no seu arquivo Word:👤 Dados PessoaisPlaceholderDescrição{{ name_id }}Nome Completo do Funcionário{{ cpf_id }}CPF Formatado{{ rg_id }}RG{{ orgao_id }}Órgão Emissor{{ estadocivil_id }}Estado Civil{{ nacionalidade_id }}Nacionalidade{{ endereco_id }}Endereço Completo💼 Dados Contratuais & EmpresaPlaceholderDescrição{{ cargo_id }}Cargo{{ setor_id }}Setor{{ salario_id }}Salário Numérico (Ex: R$ 2.500,00){{ salarioextenso_id }}Salário por Extenso (Gerado Automático){{ empresa_id }}Razão Social da Empresa Selecionada{{ cnpj_id }}CNPJ da Empresa (Automático){{ horario_id }}Horário de Trabalho{{ date_id }}Data de Admissão por Extenso{{ datetoday_id }}Data de Hoje por Extenso🚗 Específicos & CondicionaisPlaceholderDescrição{{ cnh_id }}Número da CNH (Apenas Motorista){{ categoria_id }}Categoria da CNH (Apenas Motorista){{ utiliza_id }}Marca um "X" se optou por Vale Transporte{{ nutiliza_id }}Marca um "X" se NÃO optou por Vale Transporte📂 Estrutura do ProjetoPlaintextautodoc_rh/
-├── Dockerfile           # Configuração de Build
-├── docker-compose.yml   # Orquestração de Containers
-├── app/                 # Backend (Python)
-│   ├── app.py           # Lógica da API
-│   ├── config.py        # Configurações do Sistema
-│   └── schema.sql       # Banco de Dados
-├── frontend/            # Frontend (React)
-│   ├── src/             # Código Fonte da Interface
-│   └── public/          # Assets (Logo, Favicon)
-├── docx_templates/      # Pasta de Templates (Word)
-└── generated_docs/      # Saída dos Arquivos Gerados
-🔒 LicençaPropriedade exclusiva para uso interno corporativo.
+---
+
+## Como rodar o projeto
+
+O sistema foi montado para rodar direto no Docker. Você não precisa ter Node.js ou Python instalados localmente, apenas o Docker Desktop.
+
+1. **Clone o repositório e acesse a pasta:**
+```bash
+git clone <seu-repositorio>
+cd autodoc_rh
+```
+
+2. **Organize os templates base:**
+Os arquivos do Word (`.docx`) que servirão de molde devem ser colocados nas pastas corretas dentro de `docx_templates/`:
+- `docx_templates/regular/` (Ex: Contratos padrão)
+- `docx_templates/motorista/` (Ex: Termos de responsabilidade de veículo)
+- `docx_templates/menor_aprendiz/` (Ex: Contratos de aprendizagem)
+
+3. **Suba a aplicação:**
+No terminal, na raiz do projeto, rode:
+```bash
+docker-compose up --build
+```
+*(O primeiro build pode demorar um pouco porque ele vai baixar as dependências do React e do Python).*
+
+4. **Acesse:**
+Abra o navegador em: `http://localhost:5000`
+
+---
+
+## Guia de Variáveis para os arquivos .docx
+
+Para que o sistema consiga injetar as informações nos documentos, você deve colocar as tags abaixo nos seus arquivos do Word:
+
+**Dados Pessoais**
+- `{{ name_id }}` - Nome Completo
+- `{{ cpf_id }}` - CPF Formatado
+- `{{ rg_id }}` - RG
+- `{{ orgao_id }}` - Órgão Emissor
+- `{{ estadocivil_id }}` - Estado Civil
+- `{{ nacionalidade_id }}` - Nacionalidade
+- `{{ endereco_id }}` - Endereço Completo
+
+**Dados Contratuais e Empresa**
+- `{{ cargo_id }}` - Cargo
+- `{{ setor_id }}` - Setor
+- `{{ salario_id }}` - Salário em números (Ex: R$ 2.500,00)
+- `{{ salarioextenso_id }}` - Salário por extenso (Preenchido pelo sistema)
+- `{{ empresa_id }}` - Razão Social da empresa
+- `{{ cnpj_id }}` - CNPJ da empresa
+- `{{ horario_id }}` - Horário de Trabalho
+- `{{ date_id }}` - Data de Admissão por extenso
+- `{{ datetoday_id }}` - Data atual por extenso
+
+**Campos Específicos**
+- `{{ cnh_id }}` - Número da CNH (Motoristas)
+- `{{ categoria_id }}` - Categoria da CNH (Motoristas)
+- `{{ utiliza_id }}` - Marca um "X" se quiser Vale Transporte
+- `{{ nutiliza_id }}` - Marca um "X" se NÃO quiser Vale Transporte
+
+---
+
+## Estrutura de Pastas
+
+```text
+autodoc_rh/
+├── Dockerfile             # Configuração da imagem
+├── docker-compose.yml     # Orquestração
+├── app/                   # Backend API
+│   ├── app.py             
+│   ├── config.py          
+│   └── schema.sql         
+├── frontend/              # Interface do usuário
+│   ├── src/               
+│   └── public/            
+├── docx_templates/        # Onde você coloca os Word em branco
+└── generated_docs/        # Onde os arquivos finalizados caem
+```
+
+---
+
+## Licença
+Projeto de propriedade exclusiva para uso corporativo interno.
