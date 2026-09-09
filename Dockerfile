@@ -1,5 +1,5 @@
 # Estágio 1: Build do Frontend (React)
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app_frontend
 COPY frontend/package*.json ./
 RUN npm install
@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Estágio 2: Backend (Python)
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 

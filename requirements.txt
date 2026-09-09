@@ -1,6 +1,6 @@
-Flask==2.0.1
-Werkzeug==2.0.1
-docxtpl==0.16.6
-num2words==0.5.10
-reportlab==3.6.8
-flask-cors==4.0.0
+Flask==3.0.3
+Werkzeug==3.0.6
+docxtpl==0.20.0
+num2words==0.5.14
+reportlab==4.2.5
+flask-cors==5.0.0
