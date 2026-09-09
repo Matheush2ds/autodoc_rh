@@ -1,12 +1,20 @@
 # Arquivos de cache do Python
 app/__pycache__/
 __pycache__/
+*.pyc
+
+# Node / Frontend Dependencies
+node_modules/
+**/node_modules/
 
 # Documentos gerados pelo usuário
+generated_docs/
 app/generated_docs/
 
 # Banco de dados (apenas o schema.sql deve ser rastreado)
+log.db
 app/log.db
 
-# Arquivos de ambiente (se você usar)
+# Arquivos de ambiente
 .env
+.env.local

@@ -6,9 +6,10 @@ import io
 import csv
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from flask import Flask, send_from_directory, request, jsonify, send_file, Response
+from flask import Flask, send_from_directory, request, jsonify, send_file, Response, session
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from docxtpl import DocxTemplate
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
@@ -22,7 +23,28 @@ from config import settings
 
 app = Flask(__name__, static_folder=settings.STATIC_FOLDER, static_url_path='/')
 app.secret_key = settings.SECRET_KEY
-CORS(app)
+CORS(app, supports_credentials=True)
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = Response()
+        origin = request.headers.get('Origin', '*')
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,X-Requested-With'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS,PATCH'
+        return response
+
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,X-Requested-With'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS,PATCH'
+    return response
 
 # --- Banco de Dados ---
 
@@ -42,21 +64,79 @@ def init_db():
     finally:
         db.close()
 
+DEFAULT_COMPANIES = [
+    ("LAGOA QUENTE HJR CONSTRUTORA E INCORPORADORA LTDA", "23.791.867/0001-08"),
+    ("LAGOA THERMAS CLUBE TURISMO LAZER E ECOLOGIA", "05.620.609/0001-87"),
+    ("LAGOA QUENTE BAR E RESTAURANTE LTDA", "07.894.032/0001-27"),
+    ("LAGOA QUENTE RESTAURANTE ME", "21.827.890/0001-80"),
+    ("LAGOA FLAT BAR E RESTAURANTE LTDA", "14.750.870/0001-92"),
+    ("JARDINS DA LAGOA CONDO-RESORT", "43.736.326/0001-10"), 
+    ("CIA MELHORAMENTO DE CALDAS NOVAS", "01.638.832/0001-09"),
+    ("LAGOA QUENTE RESTAURANTE LTDA", "21.827.890/0004-22"),
+    ("LAGOA ECO TOWERS", "45.736.654/0001-16"), 
+    ("GESTÃO ECO - LAGOA GESTÃO ECO TOWERS LTDA", "45.736.654/0001-16"),
+    ("GESTÃO JARDINS- LAGOA GESTÃO JARDINS LTDA", "43.736.326/0001-10")
+]
+
 def migrate_db():
     db = get_db()
     try:
+        # Tabela documents
         cursor = db.execute("PRAGMA table_info(documents)")
         columns = [col['name'] for col in cursor.fetchall()]
         if not columns:
             with app.open_resource('schema.sql', mode='r') as f:
                  db.executescript(f.read())
-            return
-        if 'employee_type' not in columns:
-            db.execute("ALTER TABLE documents ADD COLUMN employee_type TEXT NOT NULL DEFAULT 'regular'")
+        else:
+            if 'employee_type' not in columns:
+                db.execute("ALTER TABLE documents ADD COLUMN employee_type TEXT NOT NULL DEFAULT 'regular'")
+                db.commit()
+            if 'zip_filename' not in columns:
+                db.execute("ALTER TABLE documents ADD COLUMN zip_filename TEXT NOT NULL DEFAULT ''")
+                db.commit()
+
+        # Tabela users
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name          TEXT NOT NULL,
+                role          TEXT NOT NULL DEFAULT 'admin',
+                created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
+        # Seed usuário padrão se não houver
+        user_count = db.execute("SELECT COUNT(id) FROM users").fetchone()[0]
+        if user_count == 0:
+            db.execute(
+                "INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)",
+                ('admin', generate_password_hash('admin123'), 'Administrador RH', 'admin')
+            )
             db.commit()
-        if 'zip_filename' not in columns:
-            db.execute("ALTER TABLE documents ADD COLUMN zip_filename TEXT NOT NULL DEFAULT ''")
+            print("Usuário padrão inicial 'admin' criado.")
+
+        # Tabela companies
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS companies (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                name       TEXT UNIQUE NOT NULL,
+                cnpj       TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
+        # Seed empresas padrão
+        company_count = db.execute("SELECT COUNT(id) FROM companies").fetchone()[0]
+        if company_count == 0:
+            for name, cnpj in DEFAULT_COMPANIES:
+                db.execute("INSERT OR IGNORE INTO companies (name, cnpj) VALUES (?, ?)", (name, cnpj))
             db.commit()
+            print("Empresas padrão inicializadas.")
+
     except Exception as e:
         print(f"Erro na migração: {e}")
     finally:
@@ -311,6 +391,192 @@ def download_zip(filename):
         return jsonify({"error": "Arquivo físico não encontrado. Ele pode ter sido excluído do servidor."}), 404
         
     return send_from_directory(settings.OUTPUT_DIR, safe_filename, as_attachment=True)
+
+# --- Rotas de Autenticação ---
+
+@app.route("/api/auth/login", methods=["POST"])
+def api_login():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+
+    if not username or not password:
+        return jsonify({"error": "Usuário e senha são obrigatórios"}), 400
+
+    db = get_db()
+    user = db.execute("SELECT id, username, password_hash, name, role FROM users WHERE username = ?", (username,)).fetchone()
+    db.close()
+
+    if not user or not check_password_hash(user["password_hash"], password):
+        return jsonify({"error": "Credenciais inválidas. Verifique seu usuário e senha."}), 401
+
+    session["user_id"] = user["id"]
+    session["username"] = user["username"]
+
+    return jsonify({
+        "message": "Login realizado com sucesso",
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "name": user["name"],
+            "role": user["role"]
+        }
+    })
+
+@app.route("/api/auth/logout", methods=["POST"])
+def api_logout():
+    session.clear()
+    return jsonify({"message": "Logout realizado com sucesso"})
+
+@app.route("/api/auth/me", methods=["GET"])
+def api_me():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Não autenticado"}), 401
+
+    db = get_db()
+    user = db.execute("SELECT id, username, name, role FROM users WHERE id = ?", (user_id,)).fetchone()
+    db.close()
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "Usuário não encontrado"}), 401
+
+    return jsonify({
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "name": user["name"],
+            "role": user["role"]
+        }
+    })
+
+# --- Rotas de Usuários ---
+
+@app.route("/api/users", methods=["GET"])
+def api_list_users():
+    db = get_db()
+    users = db.execute("SELECT id, username, name, role, STRFTIME('%d/%m/%Y %H:%M', created_at) as created_at FROM users ORDER BY id ASC").fetchall()
+    db.close()
+    return jsonify([dict(u) for u in users])
+
+@app.route("/api/users", methods=["POST"])
+def api_create_user():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    name = data.get("name", "").strip()
+    role = data.get("role", "admin").strip()
+
+    if not username or not password or not name:
+        return jsonify({"error": "Nome, usuário e senha são obrigatórios"}), 400
+
+    if len(password) < 4:
+        return jsonify({"error": "A senha deve ter no mínimo 4 caracteres"}), 400
+
+    db = get_db()
+    existing = db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+    if existing:
+        db.close()
+        return jsonify({"error": "Este nome de usuário já está em uso"}), 409
+
+    hashed = generate_password_hash(password)
+    cursor = db.execute(
+        "INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)",
+        (username, hashed, name, role)
+    )
+    user_id = cursor.lastrowid
+    db.commit()
+    db.close()
+
+    return jsonify({
+        "message": "Usuário criado com sucesso",
+        "user": {
+            "id": user_id,
+            "username": username,
+            "name": name,
+            "role": role
+        }
+    }), 201
+
+@app.route("/api/users/<int:user_id>", methods=["DELETE"])
+def api_delete_user(user_id):
+    db = get_db()
+    total_users = db.execute("SELECT COUNT(id) FROM users").fetchone()[0]
+    if total_users <= 1:
+        db.close()
+        return jsonify({"error": "Não é possível excluir o único usuário do sistema"}), 400
+
+    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    db.commit()
+    db.close()
+    return jsonify({"message": "Usuário excluído com sucesso"})
+
+# --- Rotas de Empresas ---
+
+@app.route("/api/companies", methods=["GET"])
+def api_list_companies():
+    db = get_db()
+    companies = db.execute("SELECT id, name, cnpj, STRFTIME('%d/%m/%Y %H:%M', created_at) as created_at FROM companies ORDER BY name ASC").fetchall()
+    db.close()
+    return jsonify([dict(c) for c in companies])
+
+@app.route("/api/companies", methods=["POST"])
+def api_create_company():
+    data = request.get_json() or {}
+    name = data.get("name", "").strip().upper()
+    cnpj = data.get("cnpj", "").strip()
+
+    if not name or not cnpj:
+        return jsonify({"error": "Razão Social e CNPJ são obrigatórios"}), 400
+
+    db = get_db()
+    existing = db.execute("SELECT id FROM companies WHERE name = ?", (name,)).fetchone()
+    if existing:
+        db.close()
+        return jsonify({"error": "Já existe uma empresa cadastrada com este nome"}), 409
+
+    cursor = db.execute("INSERT INTO companies (name, cnpj) VALUES (?, ?)", (name, cnpj))
+    company_id = cursor.lastrowid
+    db.commit()
+    db.close()
+
+    return jsonify({
+        "message": "Empresa cadastrada com sucesso",
+        "company": {"id": company_id, "name": name, "cnpj": cnpj}
+    }), 201
+
+@app.route("/api/companies/<int:company_id>", methods=["PUT"])
+def api_update_company(company_id):
+    data = request.get_json() or {}
+    name = data.get("name", "").strip().upper()
+    cnpj = data.get("cnpj", "").strip()
+
+    if not name or not cnpj:
+        return jsonify({"error": "Razão Social e CNPJ são obrigatórios"}), 400
+
+    db = get_db()
+    existing = db.execute("SELECT id FROM companies WHERE name = ? AND id != ?", (name, company_id)).fetchone()
+    if existing:
+        db.close()
+        return jsonify({"error": "Já existe outra empresa com este nome"}), 409
+
+    db.execute("UPDATE companies SET name = ?, cnpj = ? WHERE id = ?", (name, cnpj, company_id))
+    db.commit()
+    db.close()
+
+    return jsonify({
+        "message": "Empresa atualizada com sucesso",
+        "company": {"id": company_id, "name": name, "cnpj": cnpj}
+    })
+
+@app.route("/api/companies/<int:company_id>", methods=["DELETE"])
+def api_delete_company(company_id):
+    db = get_db()
+    db.execute("DELETE FROM companies WHERE id = ?", (company_id,))
+    db.commit()
+    db.close()
+    return jsonify({"message": "Empresa removida com sucesso"})
 
 @app.errorhandler(404)
 def not_found(e):

@@ -5,9 +5,15 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      # Mapeia o código do backend para desenvolvimento em tempo real
+      - ./app:/app/app
+      # Mapeia a pasta de templates
+      - ./docx_templates:/app/docx_templates
       # Mapeia a pasta de documentos gerados para o seu Windows
       - ./generated_docs:/app/generated_docs
       # Mapeia o banco de dados para não perder dados ao reiniciar
       - ./log.db:/app/log.db
+      # Mapeia o build do frontend para atualizações em tempo real
+      - ./frontend/dist:/app/frontend/dist
     environment:
       - FLASK_ENV=development
