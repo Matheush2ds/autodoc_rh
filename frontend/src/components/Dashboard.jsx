@@ -1,493 +1,512 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { 
-  FileText, 
-  Users, 
-  Briefcase, 
-  Clock, 
-  Zap, 
-  Award, 
-  Truck, 
-  GraduationCap, 
-  Building2, 
-  Download, 
-  Sparkles, 
-  ArrowUpRight, 
-  TrendingUp, 
-  Calendar,
-  Layers,
-  AlertCircle,
-  RefreshCw
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import {
+  ArrowUpRight, Building2, Clock, Download, FileText, GraduationCap, Layers, Truck,
 } from 'lucide-react';
 
-// Card Principal de Estatísticas com suporte a Tema Claro e Escuro
-const MainStatCard = ({ title, value, icon: Icon, color, bg, subtext, trend, accentGradient = 'from-gold-400 to-gold-600' }) => (
-  <div className="bg-gradient-to-b from-white via-white to-slate-50/70 dark:from-navy-900 dark:via-navy-900 dark:to-navy-950/90 p-4 sm:p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06)] border border-slate-200/80 dark:border-navy-800/80 hover:border-slate-300 dark:hover:border-navy-700 hover:shadow-[0_20px_35px_-10px_rgba(15,23,42,0.12)] hover:-translate-y-1.5 transition-all duration-300 relative overflow-hidden group flex flex-col justify-between">
-    {/* Barra de brilho superior no hover */}
-    <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${accentGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-    
-    {/* Marca d'água de fundo */}
-    <div className={`absolute -right-5 -bottom-5 opacity-[0.03] dark:opacity-[0.05] group-hover:opacity-[0.08] dark:group-hover:opacity-[0.12] transition-all duration-500 transform group-hover:scale-125 group-hover:-rotate-6 pointer-events-none ${color}`}>
-      <Icon className="w-28 sm:w-36 h-28 sm:h-36" />
-    </div>
+import Toolbar from './Toolbar';
+import {
+  Button, Card, CardHead, CATEGORIES, Chip, Delta, EmptyState, ErrorState,
+  HeroTexture, Skeleton, cn, useCountUp,
+} from '../lib/ui';
 
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center ${bg} ${color} shadow-sm border border-black/5 dark:border-white/10 group-hover:scale-110 group-hover:shadow-md transition-all duration-300`}>
-          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
-        </div>
-        {trend && (
-          <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-slate-100 dark:bg-navy-800 text-slate-600 dark:text-slate-300 group-hover:bg-gold-50 dark:group-hover:bg-navy-700 group-hover:text-gold-700 dark:group-hover:text-gold-400 transition-colors">
-            {trend}
-          </span>
-        )}
-      </div>
+/* ============================================================
+   KPI — o primeiro da linha é o hero preenchido (referência 01)
+   ============================================================ */
 
-      <p className="text-[11px] sm:text-xs font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
-      <div className="flex items-baseline gap-2">
-        <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-900 dark:text-white tracking-tight">{value}</h3>
-      </div>
-    </div>
-
-    {subtext && (
-      <div className="relative z-10 mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-100/90 dark:border-navy-800/80 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
-        <span className="truncate pr-1">{subtext}</span>
-        <ArrowUpRight size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-navy-900 dark:group-hover:text-gold-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" />
-      </div>
-    )}
-  </div>
-);
-
-// Card Especial de Economia de Tempo
-const TimeSavedCard = ({ hours, mins }) => (
-  <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 text-white rounded-2xl p-4 sm:p-6 relative overflow-hidden shadow-[0_10px_30px_-5px_rgba(16,185,129,0.35)] border border-emerald-400/30 group hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.45)] hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
-    {/* Efeito Glow */}
-    <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
-    <div className="absolute top-0 right-0 p-4 opacity-15 group-hover:opacity-25 transition-opacity pointer-events-none">
-      <Zap className="w-20 sm:w-28 h-20 sm:h-28 transform group-hover:rotate-12 transition-transform duration-500" />
-    </div>
-
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="p-2 sm:p-2.5 bg-white/20 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/20 shadow-inner">
-          <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-        </div>
-        <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-white/20 backdrop-blur-md text-emerald-50 border border-white/20">
-          <Sparkles size={11} className="text-emerald-200" /> <span className="hidden sm:inline">Alta Eficiência</span><span className="sm:hidden">100%</span>
-        </span>
-      </div>
-
-      <p className="text-[11px] sm:text-xs font-bold text-emerald-100/90 uppercase tracking-wider mb-1">Economia de Tempo</p>
-      <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black mb-0.5 sm:mb-1 tracking-tight text-white flex items-baseline gap-1">
-        {hours}<span className="text-base sm:text-xl font-bold opacity-85">h</span> {mins}<span className="text-base sm:text-xl font-bold opacity-85">m</span>
-      </h3>
-      <p className="text-emerald-100 text-[10px] sm:text-xs font-medium opacity-90 line-clamp-1 sm:line-clamp-none">poupados em todos os contratos</p>
-    </div>
-
-    <div className="relative z-10 mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-white/15 flex items-center justify-between text-[10px] sm:text-[11px] text-emerald-100/80 font-medium">
-      <span className="hidden sm:inline">*Base: ~14 min no conjunto de todos os contratos</span>
-      <span className="sm:hidden">~14 min/kit completo</span>
-      <span className="text-emerald-200 font-semibold flex items-center gap-1">
-        100% Auto
-      </span>
-    </div>
-  </div>
-);
-
-// Card de Categorias de Contrato com suporte otimizado para 3 colunas no mobile
-const TypeCard = ({ label, count, icon: Icon, gradient, percentage, shadowColor, sublabel }) => (
-  <div className={`p-2.5 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl text-white relative overflow-hidden ${gradient} ${shadowColor} hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.01] transition-all duration-300 group border border-white/20 flex flex-col justify-between`}>
-    <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none"></div>
-
-    <div className="absolute -right-4 -bottom-4 sm:-right-6 sm:-bottom-6 opacity-10 rotate-12 group-hover:opacity-20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 pointer-events-none">
-      <Icon className="w-16 h-16 sm:w-36 sm:h-36" />
-    </div>
-
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-2 sm:mb-5 gap-1">
-        <div className="p-1.5 sm:p-3 bg-white/20 backdrop-blur-md rounded-lg sm:rounded-2xl shadow-inner border border-white/25 group-hover:scale-110 transition-transform duration-300">
-          <Icon className="w-3.5 h-3.5 sm:w-6 sm:h-6 text-white" />
-        </div>
-        <span className="text-[10px] sm:text-xs font-black bg-white/25 px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-white backdrop-blur-md shadow-sm border border-white/30 whitespace-nowrap">
-          {percentage}%
-        </span>
-      </div>
-
-      <h4 className="text-base sm:text-3xl lg:text-4xl font-black mb-0.5 sm:mb-1 tracking-tight text-white flex items-baseline gap-1">
-        {count} <span className="text-[10px] sm:text-sm font-medium opacity-80">docs</span>
-      </h4>
-      <p className="text-[11px] sm:text-base font-bold text-white tracking-tight line-clamp-1 sm:line-clamp-none leading-tight">{label}</p>
-      {sublabel && <p className="hidden md:block text-xs text-white/80 mt-0.5">{sublabel}</p>}
-    </div>
-
-    <div className="relative z-10 mt-2 sm:mt-5 pt-2 sm:pt-4 border-t border-white/15">
-      <div className="hidden sm:flex justify-between items-center text-[11px] text-white/80 font-medium mb-1.5">
-        <span>Participação</span>
-        <span className="font-bold">{percentage}%</span>
-      </div>
-      <div className="w-full bg-black/20 rounded-full h-1.5 sm:h-2.5 overflow-hidden p-0.5 backdrop-blur-sm border border-white/10">
-        <div 
-          className="bg-white h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
-          style={{ width: `${Math.max(percentage, 4)}%` }}
-        ></div>
-      </div>
-    </div>
-  </div>
-);
-
-// Componente Visual da Lista de Empresas
-const CompanyListItem = ({ name, count, total, index }) => {
-  const percentage = Math.round((count / total) * 100);
-  const themes = [
-    { bg: 'bg-blue-600 text-white', bar: 'from-blue-600 to-indigo-600', rank: 'bg-amber-400 text-amber-950 font-black' },
-    { bg: 'bg-amber-600 text-white', bar: 'from-amber-500 to-orange-500', rank: 'bg-slate-300 text-slate-800 font-bold' },
-    { bg: 'bg-emerald-600 text-white', bar: 'from-emerald-500 to-teal-500', rank: 'bg-amber-700 text-amber-100 font-bold' },
-    { bg: 'bg-purple-600 text-white', bar: 'from-purple-500 to-violet-600', rank: 'bg-slate-100 dark:bg-navy-700 text-slate-600 dark:text-slate-200 font-bold' },
-    { bg: 'bg-rose-600 text-white', bar: 'from-rose-500 to-pink-500', rank: 'bg-slate-100 dark:bg-navy-700 text-slate-600 dark:text-slate-200 font-bold' },
-  ];
-  const colorTheme = themes[index % themes.length];
-
+function Kpi({ label, value, foot, delta, hero, i }) {
+  const shown = useCountUp(value);
   return (
-    <div className="flex items-center gap-4 py-3.5 px-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-navy-800/50 border border-transparent hover:border-slate-100 dark:hover:border-navy-800 transition-all duration-200 group">
-      <div className="relative shrink-0">
-        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shadow-sm ${colorTheme.bg} group-hover:scale-105 transition-transform`}>
-          {name.substring(0, 2).toUpperCase()}
-        </div>
-        <span className={`absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full ${colorTheme.rank} text-[10px] flex items-center justify-center shadow-sm`}>
-          {index + 1}º
+    <div
+      style={{ '--i': i }}
+      className={cn(
+        'group relative overflow-hidden rounded-[20px] border p-5 flex flex-col justify-between min-h-[148px]',
+        'transition-[transform,box-shadow,border-color] duration-[180ms] ease-[cubic-bezier(0.2,0,0,1)]',
+        'hover:-translate-y-[3px] hover:shadow-lift animate-fade-up stagger',
+        hero
+          ? 'bg-navy-950 border-navy-950 text-white dark:bg-gold-400 dark:border-gold-400 dark:text-navy-950'
+          : 'bg-surface border-line text-ink shadow-soft hover:border-sand-300 dark:hover:border-navy-600'
+      )}
+    >
+      {hero && (
+        <>
+          <HeroTexture id="kpi-hero" />
+          <div className="absolute -right-8 -bottom-8 w-36 h-36 rounded-full bg-white/10 blur-2xl dark:bg-navy-950/10" />
+        </>
+      )}
+
+      <div className="relative flex items-start justify-between gap-2">
+        <span className={cn('text-[11px] font-bold uppercase tracking-[0.08em]', hero ? 'opacity-70' : 'text-muted')}>
+          {label}
+        </span>
+        <span
+          className={cn(
+            'w-8 h-8 rounded-full border flex items-center justify-center shrink-0',
+            'transition-transform duration-[180ms] group-hover:rotate-45',
+            hero ? 'border-white/25 dark:border-navy-950/25' : 'border-line text-muted'
+          )}
+        >
+          <ArrowUpRight className="w-4 h-4" />
         </span>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center mb-1.5">
-          <h5 className="text-sm font-bold text-navy-900 dark:text-slate-100 truncate pr-2 group-hover:text-gold-600 dark:group-hover:text-gold-400 transition-colors" title={name}>
-            {name}
-          </h5>
-          <span className="text-xs font-extrabold text-navy-900 dark:text-slate-200 bg-slate-100 dark:bg-navy-800 group-hover:bg-gold-50 dark:group-hover:bg-navy-700 group-hover:text-gold-700 dark:group-hover:text-gold-400 px-2.5 py-0.5 rounded-full transition-colors shrink-0">
-            {count} {count === 1 ? 'doc' : 'docs'}
-          </span>
-        </div>
-        <div className="w-full bg-slate-100 dark:bg-navy-950 rounded-full h-2 overflow-hidden">
-          <div 
-            className={`h-full rounded-full bg-gradient-to-r ${colorTheme.bar} transition-all duration-1000 ease-out shadow-sm`}
-            style={{ width: `${Math.max(percentage, 5)}%` }}
-          ></div>
+      <div className="relative">
+        <div className="font-display text-[38px] leading-none font-black tnum">{shown}</div>
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          {delta !== null && delta !== undefined && <Delta value={delta} suffix="" />}
+          <span className={cn('text-[11px] font-medium', hero ? 'opacity-65' : 'text-muted')}>{foot}</span>
         </div>
       </div>
     </div>
   );
-};
+}
 
-export default function Dashboard() {
+/* ============================================================
+   Medidor em arco — composição das categorias
+   ============================================================ */
+
+function ArcGauge({ segments, total }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  const r = 78;
+  const cx = 100;
+  const cy = 96;
+  const L = Math.PI * r;
+  const shownTotal = useCountUp(total);
+
+  let acc = 0;
+  const arcs = segments.map((s) => {
+    const frac = total > 0 ? s.value / total : 0;
+    const len = frac * L;
+    const arc = { ...s, len, offset: acc };
+    acc += len;
+    return arc;
+  });
+
+  return (
+    <div className="relative">
+      <svg viewBox="0 0 200 116" className="w-full max-w-[260px] mx-auto overflow-visible">
+        <defs>
+          <pattern id="gaugeHatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="var(--app-line)" strokeWidth="3" />
+          </pattern>
+        </defs>
+
+        {/* Trilha hachurada — o "pendente" da referência 01 */}
+        <path
+          d={`M ${cx - r},${cy} A ${r},${r} 0 0 1 ${cx + r},${cy}`}
+          fill="none"
+          stroke="url(#gaugeHatch)"
+          strokeWidth="20"
+          strokeLinecap="round"
+        />
+
+        {arcs.map((a) => (
+          <path
+            key={a.key}
+            d={`M ${cx - r},${cy} A ${r},${r} 0 0 1 ${cx + r},${cy}`}
+            fill="none"
+            stroke={a.color}
+            strokeWidth="20"
+            strokeLinecap="round"
+            strokeDasharray={`${mounted ? a.len : 0} ${L * 2}`}
+            strokeDashoffset={-a.offset}
+            style={{ transition: 'stroke-dasharray 900ms cubic-bezier(0.05,0.7,0.1,1)' }}
+          />
+        ))}
+      </svg>
+
+      <div className="absolute inset-x-0 bottom-1 text-center">
+        <div className="font-display text-[34px] leading-none font-black text-ink tnum">{shownTotal}</div>
+        <div className="text-[11px] font-semibold text-muted mt-1">kits emitidos</div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Dashboard
+   ============================================================ */
+
+export default function Dashboard({ onNavigate, onOpenMobileNav }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [updatedAt, setUpdatedAt] = useState(new Date());
 
-  const fetchData = () => {
+  const load = () => {
     setLoading(true);
     setError(null);
-    axios.get('/api/dashboard-data')
-      .then(res => setData(res.data))
-      .catch(err => {
-        console.error(err);
-        setError('Não foi possível conectar ao servidor para obter os indicadores do painel.');
+    axios
+      .get('/api/dashboard-data')
+      .then(({ data }) => {
+        setData(data);
+        setUpdatedAt(new Date());
       })
+      .catch(() => setError('Os indicadores do painel não puderam ser carregados agora.'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(load, []);
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center h-[70vh]">
-      <div className="w-14 h-14 border-4 border-gold-500 border-t-transparent rounded-full animate-spin"></div>
-      <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">Carregando indicadores do painel...</p>
-    </div>
+  const derived = useMemo(() => {
+    if (!data) return null;
+    const daily = data.charts?.daily || { labels: [], data: [] };
+    const series = daily.labels.map((label, idx) => ({ label, docs: daily.data[idx] || 0 }));
+
+    // Delta real: hoje contra ontem, a partir da própria série de 7 dias.
+    const todayCount = series.at(-1)?.docs ?? 0;
+    const yesterdayCount = series.at(-2)?.docs ?? 0;
+    const deltaToday = todayCount - yesterdayCount;
+
+    const types = data.charts?.types || {};
+    const total = data.stats?.total || 0;
+    const minutes = total * 14;
+
+    return {
+      series,
+      deltaToday,
+      segments: [
+        { key: 'regular', label: CATEGORIES.regular.label, value: types.regular || 0, color: CATEGORIES.regular.color, icon: FileText },
+        { key: 'motorista', label: CATEGORIES.motorista.label, value: types.motorista || 0, color: CATEGORIES.motorista.color, icon: Truck },
+        { key: 'aprendiz', label: CATEGORIES.aprendiz.label, value: types.aprendiz || 0, color: CATEGORIES.aprendiz.color, icon: GraduationCap },
+      ],
+      hours: Math.floor(minutes / 60),
+      mins: minutes % 60,
+      companies: data.charts?.companies || [],
+      history: data.history || [],
+      total,
+    };
+  }, [data]);
+
+  const toolbar = (
+    <Toolbar
+      title="Dashboard"
+      updatedAt={updatedAt}
+      onRefresh={load}
+      onOpenMobileNav={onOpenMobileNav}
+      actions={
+        <Button icon={FileText} onClick={() => onNavigate('form:regular')}>
+          Novo kit
+        </Button>
+      }
+    />
   );
 
-  if (error || !data) return (
-    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 animate-fade-in">
-      <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center mb-4 border border-red-200 dark:border-red-900/50">
-        <AlertCircle size={32} />
-      </div>
-      <h2 className="text-xl font-bold text-navy-900 dark:text-white mb-2">Falha na Comunicação</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-6">{error || 'Os indicadores do painel não estão disponíveis.'}</p>
-      <button 
-        onClick={fetchData}
-        className="px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-navy-900 font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-      >
-        <RefreshCw size={16} />
-        Tentar Novamente
-      </button>
-    </div>
-  );
+  if (loading) {
+    return (
+      <>
+        {toolbar}
+        <div className="p-4 sm:p-6 space-y-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[148px] rounded-[20px]" />)}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <Skeleton className="h-[320px] rounded-[20px] lg:col-span-7" />
+            <Skeleton className="h-[320px] rounded-[20px] lg:col-span-5" />
+          </div>
+          <Skeleton className="h-[280px] rounded-[20px]" />
+        </div>
+      </>
+    );
+  }
 
-  const totalKits = data?.stats?.total || 0;
-  const total = totalKits || 1;
-  const regularCount = data?.charts?.types?.regular || 0;
-  const motoristaCount = data?.charts?.types?.motorista || 0;
-  const aprendizCount = data?.charts?.types?.aprendiz || 0;
+  if (error || !derived) {
+    return (
+      <>
+        {toolbar}
+        <ErrorState message={error} onRetry={load} />
+      </>
+    );
+  }
 
-  // Cálculo de Tempo Economizado: 14 minutos economizados no preenchimento de todos os contratos de cada kit admissional
-  const minutesSaved = totalKits * 14;
-  const hours = Math.floor(minutesSaved / 60);
-  const mins = minutesSaved % 60;
+  const { series, deltaToday, segments, hours, mins, companies, history, total } = derived;
+  const maxCompany = Math.max(1, ...companies.map((c) => c.count));
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      
-      {/* Título de Seção com Contexto e Data */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-gold-500"></span>
-            <span className="text-xs font-bold uppercase tracking-wider text-gold-600 dark:text-gold-400">Visão Executiva</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-navy-900 dark:text-white tracking-tight">Painel de Métricas & Produtividade</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Monitoramento em tempo real do processamento de contratos e kits admissionais.</p>
-        </div>
-        <div className="bg-white dark:bg-navy-900 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-navy-800 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.04)] text-xs text-slate-600 dark:text-slate-300 font-semibold flex items-center gap-2 self-start md:self-auto">
-          <Calendar size={15} className="text-gold-500" />
-          {new Date().toLocaleDateString('pt-BR', { dateStyle: 'long' })}
-        </div>
-      </div>
+    <>
+      {toolbar}
 
-      {/* Grid Principal dos Cards de Métricas (2 cols no mobile, 4 cols desktop) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        <MainStatCard 
-          title="Gerados Hoje" 
-          value={data.stats.today} 
-          icon={FileText} 
-          color="text-blue-600 dark:text-blue-400" 
-          bg="bg-blue-50 dark:bg-blue-950/60" 
-          subtext="Documentos emitidos hoje"
-          trend="Hoje"
-          accentGradient="from-blue-400 to-indigo-600"
-        />
-        <MainStatCard 
-          title="Mês Atual" 
-          value={data.stats.month} 
-          icon={Briefcase} 
-          color="text-indigo-600 dark:text-indigo-400" 
-          bg="bg-indigo-50 dark:bg-indigo-950/60" 
-          subtext="Volume acumulado no mês"
-          trend="Mensal"
-          accentGradient="from-indigo-400 to-purple-600"
-        />
-        <MainStatCard 
-          title="Total Histórico" 
-          value={data.stats.total} 
-          icon={Award} 
-          color="text-gold-600 dark:text-gold-400" 
-          bg="bg-gold-50 dark:bg-gold-950/60" 
-          subtext="Total de kits gerados"
-          trend="Geral"
-          accentGradient="from-gold-400 to-amber-600"
-        />
-        <TimeSavedCard hours={hours} mins={mins} />
-      </div>
-
-      {/* Seção de Categorias de Contrato */}
-      <div>
-        <div className="flex items-center justify-between mb-3 sm:mb-5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-1.5 h-5 sm:h-6 bg-navy-900 dark:bg-gold-500 rounded-full"></div>
-            <h2 className="text-base sm:text-lg font-bold text-navy-900 dark:text-white tracking-tight">Categorias de Contratação</h2>
-          </div>
-          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-navy-900 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border border-transparent dark:border-navy-800">
-            {total} kits gerados
-          </span>
-        </div>
-
-        {/* 3 cards lado a lado no mobile e no desktop */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6">
-          <TypeCard 
-            label="Funcionário Regular" 
-            sublabel="Contratações padrão CLT"
-            count={regularCount} 
-            icon={Users} 
-            percentage={Math.round((regularCount / total) * 100)} 
-            gradient="bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-800" 
-            shadowColor="shadow-[0_10px_25px_-5px_rgba(37,99,235,0.3)]"
+      <div className="p-4 sm:p-6 space-y-5 pb-12">
+        {/* ---------- KPIs ---------- */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Kpi
+            i={0}
+            hero
+            label="Gerados hoje"
+            value={data.stats.today}
+            delta={deltaToday}
+            foot="em relação a ontem"
           />
-          <TypeCard 
-            label="Motoristas" 
-            sublabel="Com CNH e Termo Veicular"
-            count={motoristaCount} 
-            icon={Truck} 
-            percentage={Math.round((motoristaCount / total) * 100)} 
-            gradient="bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700" 
-            shadowColor="shadow-[0_10px_25px_-5px_rgba(217,119,6,0.3)]"
-          />
-          <TypeCard 
-            label="Menor Aprendiz" 
-            sublabel="Lei da Aprendizagem"
-            count={aprendizCount} 
-            icon={GraduationCap} 
-            percentage={Math.round((aprendizCount / total) * 100)} 
-            gradient="bg-gradient-to-br from-purple-600 via-violet-600 to-purple-900" 
-            shadowColor="shadow-[0_10px_25px_-5px_rgba(147,51,234,0.3)]"
-          />
-        </div>
-      </div>
-
-      {/* Área de Gráficos e Ranking de Empresas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        
-        {/* Gráfico de Atividade Recente (Card Premium) */}
-        <div className="lg:col-span-2 bg-gradient-to-b from-white to-slate-50/50 dark:from-navy-900 dark:to-navy-950/80 p-6 md:p-8 rounded-3xl shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] border border-slate-200/80 dark:border-navy-800/80">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gold-50 dark:bg-gold-950/50 text-gold-600 dark:text-gold-400 rounded-xl border border-gold-200/60 dark:border-gold-800/40 shadow-sm">
-                <TrendingUp size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-navy-900 dark:text-white leading-tight">Atividade Recente</h2>
-                <p className="text-xs text-slate-400">Volume de documentos emitidos nos últimos 7 dias</p>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-navy-900 dark:text-slate-200 bg-slate-100 dark:bg-navy-800 px-3.5 py-1.5 rounded-full border border-slate-200/70 dark:border-navy-700">
-              Últimos 7 Dias
-            </span>
-          </div>
-
-          <div className="h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.charts.daily.labels.map((l, i) => ({ name: l, docs: data.charts.daily.data[i] }))}>
-                <defs>
-                  <linearGradient id="colorDocs" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#d97706" stopOpacity={0.35}/>
-                    <stop offset="95%" stopColor="#d97706" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 600}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 600}} allowDecimals={false} />
-                <Tooltip 
-                  contentStyle={{
-                    borderRadius: '16px', 
-                    border: '1px solid rgba(51, 65, 85, 0.6)', 
-                    boxShadow: '0 15px 35px -5px rgba(0, 0, 0, 0.25)',
-                    fontWeight: 600,
-                    backgroundColor: '#0f172a',
-                    color: '#ffffff'
-                  }}
-                  formatter={(value) => [`${value} kits gerados`, 'Volume']}
-                  cursor={{stroke: '#d97706', strokeWidth: 1.5, strokeDasharray: '4 4'}}
-                />
-                <Area type="monotone" dataKey="docs" stroke="#d97706" strokeWidth={3.5} fillOpacity={1} fill="url(#colorDocs)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <Kpi i={1} label="Mês atual" value={data.stats.month} foot={`${data.stats.week} nos últimos 7 dias`} />
+          <Kpi i={2} label="Total histórico" value={data.stats.total} foot={`${companies.length} empresas atendidas`} />
+          <Kpi i={3} label="Horas poupadas" value={hours} foot={`e mais ${mins} min de digitação`} />
         </div>
 
-        {/* Card de Top Empresas */}
-        <div className="bg-gradient-to-b from-white to-slate-50/50 dark:from-navy-900 dark:to-navy-950/80 p-6 md:p-8 rounded-3xl shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] border border-slate-200/80 dark:border-navy-800/80 flex flex-col">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-navy-800">
-            <div className="p-2.5 bg-navy-50 dark:bg-navy-800 text-navy-900 dark:text-gold-400 rounded-xl border border-navy-100 dark:border-navy-700 shadow-sm">
-              <Building2 size={20} />
+        {/* ---------- Gráfico + medidor ---------- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <Card i={4} className="lg:col-span-7 flex flex-col">
+            <CardHead
+              title="Emissões por dia"
+              sub="Volume de kits nos últimos 7 dias"
+              action={<Chip tone="neutral">7 dias</Chip>}
+            />
+            <div className="flex-1 px-2 pb-4 min-h-[260px]">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 0 }} barCategoryGap="28%">
+                  <defs>
+                    <pattern id="barHatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                      <line x1="0" y1="0" x2="0" y2="6" stroke="var(--app-line)" strokeWidth="3" />
+                    </pattern>
+                  </defs>
+                  <XAxis
+                    dataKey="label"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'var(--app-muted)', fontSize: 11, fontWeight: 700 }}
+                    dy={8}
+                  />
+                  <Tooltip
+                    cursor={false}
+                    content={({ active, payload, label }) =>
+                      active && payload?.length ? (
+                        <div className="rounded-full bg-navy-950 px-3 py-1.5 text-[11px] font-bold text-white shadow-lift">
+                          {label} · {payload[0].value} {payload[0].value === 1 ? 'kit' : 'kits'}
+                        </div>
+                      ) : null
+                    }
+                  />
+                  {/* background = trilha hachurada dos dias sem emissão */}
+                  <Bar
+                    dataKey="docs"
+                    radius={999}
+                    background={{ fill: 'url(#barHatch)', radius: 999 }}
+                    isAnimationActive
+                    animationDuration={700}
+                  >
+                    {series.map((entry, idx) => (
+                      <Cell
+                        key={idx}
+                        /* hoje ganha destaque com a cor de tinta do tema — navy
+                           fixo desaparecia contra o card no modo escuro */
+                        fill={idx === series.length - 1 ? 'var(--app-ink)' : 'var(--color-gold-400)'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-navy-900 dark:text-white leading-tight">Top Empresas</h2>
-              <p className="text-xs text-slate-400">Maiores volumes de emissão</p>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-            {data.charts.companies.slice(0, 5).map((company, index) => (
-              <CompanyListItem 
-                key={index}
-                name={company.company_name}
-                count={company.count}
-                total={total}
-                index={index}
-              />
-            ))}
-            {data.charts.companies.length === 0 && (
-              <div className="py-12 text-center text-xs text-slate-400 font-medium">
-                Nenhum dado por empresa ainda.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+          </Card>
 
-      {/* Tabela de Histórico Recente (Card com Acabamento Premium) */}
-      <div className="bg-white dark:bg-navy-900 rounded-3xl shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] border border-slate-200/80 dark:border-navy-800/80 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 dark:border-navy-800 flex items-center justify-between bg-gradient-to-r from-slate-50 via-slate-50/80 to-slate-100/40 dark:from-navy-950 dark:via-navy-900 dark:to-navy-950">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-navy-900 dark:bg-navy-800 text-gold-400 rounded-xl shadow-sm border border-navy-800 dark:border-navy-700">
-              <Layers size={18} />
+          <Card i={5} className="lg:col-span-5 flex flex-col">
+            <CardHead title="Categorias de contratação" sub="Composição de todos os kits emitidos" />
+            <div className="px-5">
+              <ArcGauge segments={segments} total={total} />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-navy-900 dark:text-white">Histórico de Gerações</h2>
-              <p className="text-xs text-slate-400">Últimos documentos processados pelo sistema</p>
-            </div>
-          </div>
-          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-navy-800 px-3 py-1 rounded-xl border border-slate-200/80 dark:border-navy-700 shadow-sm">
-            {data.history.length} registros
-          </span>
-        </div>
-
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50/80 dark:bg-navy-950/60 text-[11px] uppercase font-bold text-slate-400 dark:text-slate-400 tracking-wider border-b border-slate-100 dark:border-navy-800">
-              <tr>
-                <th className="p-5 pl-8 whitespace-nowrap">Data / Hora</th>
-                <th className="p-5 whitespace-nowrap">Colaborador</th>
-                <th className="p-5 whitespace-nowrap">Empresa</th>
-                <th className="p-5 whitespace-nowrap">Categoria</th>
-                <th className="p-5 text-right pr-8 whitespace-nowrap">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-navy-800/70">
-              {data.history.map((doc) => (
-                <tr key={doc.id} className="hover:bg-slate-50/90 dark:hover:bg-navy-800/40 transition-colors group">
-                  <td className="p-5 pl-8 font-semibold text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
-                    {doc.gen_date}
-                  </td>
-                  <td className="p-5 font-bold text-navy-900 dark:text-white whitespace-nowrap">
-                    {doc.employee_name}
-                  </td>
-                  <td className="p-5">
-                    <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-slate-100 dark:bg-navy-950 text-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-navy-800 max-w-xs truncate" title={doc.company_name}>
-                      {doc.company_name}
-                    </span>
-                  </td>
-                  <td className="p-5 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold capitalize
-                      ${doc.employee_type === 'regular' ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-900/50' : 
-                        doc.employee_type === 'motorista' ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-900/50' : 
-                        'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/70 dark:border-purple-900/50'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        doc.employee_type === 'regular' ? 'bg-blue-500' : 
-                        doc.employee_type === 'motorista' ? 'bg-amber-500' : 'bg-purple-500'
-                      }`}></span>
-                      {doc.employee_type}
-                    </span>
-                  </td>
-                  <td className="p-5 text-right pr-8 whitespace-nowrap">
-                    <a 
-                      href={`/download_zip/${doc.zip_filename}`} 
-                      className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-white bg-navy-900 dark:bg-navy-800 hover:bg-gradient-to-r hover:from-gold-500 hover:to-gold-600 hover:shadow-glow active:scale-95 transition-all duration-200 gap-2 shadow-sm"
+            <div className="px-5 pb-5 pt-4 space-y-2.5">
+              {segments.map((s) => {
+                const pct = total > 0 ? Math.round((s.value / total) * 100) : 0;
+                const Icon = s.icon;
+                return (
+                  <div key={s.key} className="flex items-center gap-3">
+                    <span
+                      className="w-7 h-7 rounded-[9px] flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `color-mix(in oklab, ${s.color} 14%, transparent)`, color: s.color }}
                     >
-                      <Download size={14} /> Baixar Kit
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {data.history.length === 0 && (
-            <div className="p-12 text-center text-slate-400 dark:text-slate-500 text-sm font-medium">
-              Nenhum documento gerado recentemente.
+                      <Icon className="w-3.5 h-3.5" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[12px] font-bold text-ink truncate">{s.label}</span>
+                        <span className="text-[11px] font-bold text-muted tnum shrink-0">{s.value} · {pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-[900ms] ease-[cubic-bezier(0.05,0.7,0.1,1)]"
+                          style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: s.color }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </Card>
         </div>
-      </div>
 
+        {/* ---------- Empresas + card-âncora ---------- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <Card i={6} className="lg:col-span-7 flex flex-col">
+            <CardHead
+              title="Top empresas"
+              sub="Maiores volumes de emissão"
+              action={<Chip tone="neutral">{companies.length}</Chip>}
+            />
+            <div className="px-3 pb-4 flex-1">
+              {companies.length === 0 ? (
+                <EmptyState icon={Building2} title="Nenhum kit emitido ainda" description="Assim que o primeiro documento for gerado, o ranking aparece aqui." />
+              ) : (
+                companies.slice(0, 5).map((c, idx) => {
+                  const pct = Math.round((c.count / maxCompany) * 100);
+                  return (
+                    <div
+                      key={c.company_name}
+                      style={{ '--i': idx }}
+                      className="flex items-center gap-3 px-2 py-2.5 rounded-[14px] hover:bg-surface-2 transition-colors duration-[120ms] animate-fade-up stagger"
+                    >
+                      <span className="relative shrink-0">
+                        <span className="w-9 h-9 rounded-[12px] bg-navy-950 dark:bg-navy-800 text-white flex items-center justify-center text-[11px] font-black">
+                          {c.company_name.substring(0, 2).toUpperCase()}
+                        </span>
+                        <span className="absolute -top-1.5 -left-1.5 w-[18px] h-[18px] rounded-full bg-gold-400 text-navy-950 text-[9px] font-black flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[12px] font-bold text-ink truncate" title={c.company_name}>
+                            {c.company_name}
+                          </span>
+                          <Chip tone="neutral" className="shrink-0 tnum">{c.count}</Chip>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gold-400 transition-[width] duration-[900ms] ease-[cubic-bezier(0.05,0.7,0.1,1)]"
+                            style={{ width: `${Math.max(pct, 3)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+
+          {/* Card escuro — âncora visual da composição */}
+          <div
+            style={{ '--i': 7 }}
+            className="lg:col-span-5 relative overflow-hidden rounded-[20px] bg-navy-950 text-white p-6 flex flex-col justify-between min-h-[260px] animate-fade-up stagger"
+          >
+            <div className="mesh absolute inset-0 opacity-60">
+              <div
+                className="absolute -top-1/3 -right-1/4 w-[80%] aspect-square rounded-full blur-3xl animate-drift-a"
+                style={{ background: 'radial-gradient(circle, var(--mesh-a) 0%, transparent 70%)' }}
+              />
+              <div
+                className="absolute -bottom-1/3 -left-1/4 w-[80%] aspect-square rounded-full blur-3xl animate-drift-c"
+                style={{ background: 'radial-gradient(circle, var(--mesh-c) 0%, transparent 70%)' }}
+              />
+            </div>
+            <div className="grain absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none" />
+
+            <div className="relative flex items-start justify-between">
+              <div className="w-10 h-10 rounded-[14px] bg-white/12 border border-white/15 flex items-center justify-center">
+                <Clock className="w-5 h-5" />
+              </div>
+              <Chip tone="onDark">100% automático</Chip>
+            </div>
+
+            <div className="relative">
+              <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-white/60">
+                Economia de tempo
+              </div>
+              <div className="font-display font-black text-[46px] leading-none mt-1.5 tnum">
+                {hours}
+                <span className="text-[22px] opacity-70">h</span>{' '}
+                {mins}
+                <span className="text-[22px] opacity-70">min</span>
+              </div>
+              <p className="text-[12px] text-white/55 mt-3 leading-snug">
+                Base: ~14 min de digitação manual por kit, sobre {total} {total === 1 ? 'kit emitido' : 'kits emitidos'}.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ---------- Histórico ---------- */}
+        <Card i={8} className="overflow-hidden">
+          <CardHead
+            title="Últimas gerações"
+            sub="Documentos processados recentemente"
+            action={
+              <Button variant="outline" size="sm" onClick={() => onNavigate('history')}>
+                Ver tudo
+              </Button>
+            }
+          />
+          <HistoryTable rows={history.slice(0, 8)} />
+        </Card>
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   Tabela de histórico — reutilizada na página Histórico
+   ============================================================ */
+
+export function HistoryTable({ rows }) {
+  if (!rows || rows.length === 0) {
+    return (
+      <EmptyState
+        icon={Layers}
+        title="Nenhum kit gerado ainda"
+        description="Os documentos que você emitir aparecem aqui, com link para baixar de novo."
+      />
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto scroll-slim">
+      <table className="w-full text-left">
+        <thead>
+          <tr className="border-y border-line bg-surface-2">
+            <th className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted whitespace-nowrap">Data</th>
+            <th className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted whitespace-nowrap">Colaborador</th>
+            <th className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted whitespace-nowrap">Empresa</th>
+            <th className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted whitespace-nowrap">Categoria</th>
+            <th className="px-5 py-3 text-right text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted whitespace-nowrap">Kit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((doc, idx) => {
+            const cat = CATEGORIES[doc.employee_type] || CATEGORIES.regular;
+            return (
+              <tr
+                key={doc.id}
+                style={{ '--i': Math.min(idx, 9) }}
+                className="border-b border-line last:border-0 transition-[background-color,transform] duration-[120ms] hover:bg-surface-2 hover:translate-x-0.5 animate-fade-up stagger"
+              >
+                <td className="px-5 py-3.5 text-[12px] font-semibold text-muted whitespace-nowrap tnum">{doc.gen_date}</td>
+                <td className="px-5 py-3.5 text-[13px] font-bold text-ink whitespace-nowrap">{doc.employee_name}</td>
+                <td className="px-5 py-3.5">
+                  <span className="text-[12px] text-muted truncate block max-w-[240px]" title={doc.company_name}>
+                    {doc.company_name}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5 whitespace-nowrap">
+                  <Chip tone={cat.tone} dot>{cat.short}</Chip>
+                </td>
+                <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                  <a
+                    href={`/download_zip/${doc.zip_filename}`}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-line bg-surface text-[11px] font-bold text-ink hover:border-accent hover:text-accent active:scale-95 transition-[color,border-color,transform] duration-[120ms]"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Baixar
+                  </a>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

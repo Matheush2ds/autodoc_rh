@@ -1,525 +1,680 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import {
+  AlertCircle, ArrowLeft, ArrowRight, Building2, Car, Check, CheckCircle2, Download,
+  FileText, GraduationCap, Loader2, MapPin, Search, Sparkles, Truck, User, Wallet,
+} from 'lucide-react';
+
+import Toolbar from './Toolbar';
 import { COMPANIES as FALLBACK_COMPANIES } from '../constants';
-import { Save, Loader2, CheckCircle2, User, Building2, Wallet, Car, Sparkles, FileCheck, ArrowRight, MapPin, Search, AlertCircle } from 'lucide-react';
+import { salarioPorExtenso } from '../lib/extenso';
+import {
+  Button, CARD, Card, Chip, Field, SelectField, Segmented, SuccessCheck, cn,
+} from '../lib/ui';
 
-export default function DocumentForm({ type }) {
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+const TYPE_META = {
+  regular: { title: 'Funcionário regular', sub: 'Admissão padrão CLT', icon: FileText, tone: 'regular', color: 'var(--color-cat-regular)' },
+  motorista: { title: 'Motorista', sub: 'Admissão com CNH e termo veicular', icon: Truck, tone: 'motorista', color: 'var(--color-cat-motorista)' },
+  aprendiz: { title: 'Menor aprendiz', sub: 'Contrato pela Lei da Aprendizagem', icon: GraduationCap, tone: 'aprendiz', color: 'var(--color-cat-aprendiz)' },
+};
+
+const STEPS = [
+  { id: 0, label: 'Colaborador', icon: User },
+  { id: 1, label: 'Contrato', icon: Wallet },
+  { id: 2, label: 'Revisão', icon: Check },
+];
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export default function DocumentForm({ type, onOpenMobileNav, onOpenTags }) {
+  const meta = TYPE_META[type] || TYPE_META.regular;
+  const Icon = meta.icon;
+
+  const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState('next');
   const [companies, setCompanies] = useState(FALLBACK_COMPANIES);
-  const [formData, setFormData] = useState({
-    employee_type: type, empresa: '', cnpj: '', utiliza: 'sim', endereco: ''
+  const [status, setStatus] = useState('idle'); // idle | generating | done
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [touched, setTouched] = useState(false);
+
+  const [form, setForm] = useState({
+    name: '', cpf: '', rg: '', orgao: '', nacionalidade: 'Brasileiro(a)', estadocivil: '',
+    cargo: '', salario: '', data_contratacao: '', horario: '', empresa: '', cnpj: '',
+    setor: '', utiliza: 'sim', cnh: '', categoria: '', endereco: '',
   });
 
-  const [addressData, setAddressData] = useState({
-    cep: '',
-    logradouro: '',
-    numero: '',
-    complemento: '',
-    bairro: '',
-    cidade: '',
-    uf: ''
+  const [address, setAddress] = useState({
+    cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
   });
-  const [loadingCep, setLoadingCep] = useState(false);
-  const [cepMessage, setCepMessage] = useState({ text: '', type: '' });
+  const [cep, setCep] = useState({ loading: false, message: '', tone: '' });
+  const [glow, setGlow] = useState({});
+  const [cnpjGlow, setCnpjGlow] = useState(false);
 
   useEffect(() => {
-    axios.get('/api/companies')
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          setCompanies(res.data);
-        }
-      })
-      .catch(err => console.error('Usando lista fallback de empresas:', err));
+    axios
+      .get('/api/companies')
+      .then(({ data }) => data?.length && setCompanies(data))
+      .catch(() => { /* mantém a lista local de fallback */ });
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'empresa') {
-      const company = companies.find(c => c.name === value);
-      setFormData(prev => ({ ...prev, [name]: value, cnpj: company ? company.cnpj : '' }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
+  /* ---------------- Endereço ---------------- */
 
-  const handlePriceMask = (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    value = (Number(value) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    setFormData(prev => ({ ...prev, salario: value }));
-  };
-
-  const buildAddressString = (addr) => {
+  const addressString = (a) => {
     const parts = [];
-    if (addr.logradouro) {
-      let street = addr.logradouro;
-      if (addr.numero) street += `, nº ${addr.numero}`;
-      if (addr.complemento) street += ` - ${addr.complemento}`;
-      parts.push(street);
-    } else if (addr.numero) {
-      parts.push(`nº ${addr.numero}`);
-    }
-    if (addr.bairro) parts.push(addr.bairro);
-    if (addr.cidade || addr.uf) {
-      const cityUf = [addr.cidade, addr.uf].filter(Boolean).join(' - ');
-      parts.push(cityUf);
-    }
-    if (addr.cep) parts.push(`CEP: ${addr.cep}`);
+    if (a.logradouro) {
+      let s = a.logradouro;
+      if (a.numero) s += `, nº ${a.numero}`;
+      if (a.complemento) s += ` - ${a.complemento}`;
+      parts.push(s);
+    } else if (a.numero) parts.push(`nº ${a.numero}`);
+    if (a.bairro) parts.push(a.bairro);
+    if (a.cidade || a.uf) parts.push([a.cidade, a.uf].filter(Boolean).join(' - '));
+    if (a.cep) parts.push(`CEP: ${a.cep}`);
     return parts.join(', ');
   };
 
-  const handleAddressFieldChange = (field, value) => {
-    const updated = { ...addressData, [field]: value };
-    setAddressData(updated);
-    const complete = buildAddressString(updated);
-    setFormData(prev => ({ ...prev, endereco: complete }));
+  const setAddressField = (key, value) => {
+    setAddress((prev) => {
+      const next = { ...prev, [key]: value };
+      setForm((f) => ({ ...f, endereco: addressString(next) }));
+      return next;
+    });
   };
 
-  const fetchViaCep = async (rawCep, currentAddr) => {
-    setLoadingCep(true);
-    setCepMessage({ text: 'Buscando CEP no ViaCEP...', type: 'info' });
+  // Preenchimento em cascata: um campo de cada vez, com realce.
+  const cascadeFill = async (entries) => {
+    for (const [key, value] of entries) {
+      if (!value) continue;
+      setAddressField(key, value);
+      setGlow((g) => ({ ...g, [key]: true }));
+      await sleep(95);
+    }
+    await sleep(900);
+    setGlow({});
+  };
+
+  const handleCep = async (raw) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    const masked = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+    setAddressField('cep', masked);
+    setCep({ loading: false, message: '', tone: '' });
+
+    if (digits.length !== 8) return;
+
+    setCep({ loading: true, message: 'Consultando o ViaCEP...', tone: 'info' });
     try {
-      const response = await axios.get(`https://viacep.com.br/ws/${rawCep}/json/`);
-      const data = response.data;
+      const { data } = await axios.get(`https://viacep.com.br/ws/${digits}/json/`);
       if (data.erro) {
-        setCepMessage({ text: 'CEP não encontrado. Preencha o endereço manualmente.', type: 'warning' });
-      } else {
-        const next = {
-          ...currentAddr,
-          logradouro: data.logradouro || currentAddr.logradouro,
-          bairro: data.bairro || currentAddr.bairro,
-          cidade: data.localidade || currentAddr.cidade,
-          uf: data.uf || currentAddr.uf,
-          complemento: currentAddr.complemento || data.complemento || ''
-        };
-        setAddressData(next);
-        const complete = buildAddressString(next);
-        setFormData(prev => ({ ...prev, endereco: complete }));
-        setCepMessage({ text: `${data.localidade || ''} - ${data.uf || ''} localizado com sucesso!`, type: 'success' });
+        setCep({ loading: false, message: 'CEP não encontrado. Preencha o endereço à mão.', tone: 'warn' });
+        return;
       }
-    } catch (err) {
-      console.error('Erro ao consultar ViaCEP:', err);
-      setCepMessage({ text: 'Não foi possível consultar o ViaCEP automaticamente. Preencha manualmente.', type: 'warning' });
-    } finally {
-      setLoadingCep(false);
+      setCep({ loading: false, message: `${data.localidade} - ${data.uf} encontrado.`, tone: 'ok' });
+      await cascadeFill([
+        ['logradouro', data.logradouro],
+        ['bairro', data.bairro],
+        ['cidade', data.localidade],
+        ['uf', data.uf],
+      ]);
+    } catch {
+      setCep({ loading: false, message: 'Não consegui consultar o ViaCEP. Preencha à mão.', tone: 'warn' });
     }
   };
 
-  const handleCepChange = (e) => {
-    let digits = e.target.value.replace(/\D/g, '').slice(0, 8);
-    let masked = digits;
-    if (digits.length > 5) {
-      masked = `${digits.slice(0, 5)}-${digits.slice(5)}`;
-    }
-    const updated = { ...addressData, cep: masked };
-    setAddressData(updated);
-    const complete = buildAddressString(updated);
-    setFormData(prev => ({ ...prev, endereco: complete }));
-    setCepMessage({ text: '', type: '' });
+  /* ---------------- Campos ---------------- */
 
-    if (digits.length === 8) {
-      fetchViaCep(digits, updated);
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const handleCompany = (value) => {
+    const company = companies.find((c) => c.name === value);
+    setForm((f) => ({ ...f, empresa: value, cnpj: company?.cnpj || '' }));
+    if (company?.cnpj) {
+      setCnpjGlow(true);
+      setTimeout(() => setCnpjGlow(false), 1100);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true); setSuccess(false);
+  const handleSalario = (raw) => {
+    const digits = raw.replace(/\D/g, '');
+    const value = (Number(digits) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    set('salario', digits ? value : '');
+  };
+
+  const extenso = useMemo(() => salarioPorExtenso(form.salario), [form.salario]);
+
+  /* ---------------- Navegação entre passos ---------------- */
+
+  const problems = useMemo(() => {
+    const p = {};
+    if (!form.name.trim()) p.name = { step: 0, label: 'Nome completo do colaborador' };
+    if (!form.empresa) p.empresa = { step: 1, label: 'Empresa contratante' };
+    if (!form.data_contratacao) p.data_contratacao = { step: 1, label: 'Data de admissão' };
+    return p;
+  }, [form]);
+
+  const stepProblems = (s) => Object.values(problems).filter((p) => p.step === s);
+
+  const go = (next) => {
+    setDirection(next > step ? 'next' : 'prev');
+    setStep(next);
+    setTouched(false);
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const advance = () => {
+    if (stepProblems(step).length > 0) {
+      setTouched(true);
+      return;
+    }
+    go(Math.min(step + 1, 2));
+  };
+
+  /* ---------------- Geração ---------------- */
+
+  const generate = async () => {
+    if (Object.keys(problems).length > 0) {
+      setTouched(true);
+      go(Object.values(problems)[0].step);
+      return;
+    }
+
+    setStatus('generating');
+    setError(null);
+
     try {
-        const body = new FormData();
-        Object.keys(formData).forEach(key => body.append(key, formData[key]));
-        body.set('employee_type', type);
-        const response = await axios.post('/api/generate', body, { responseType: 'blob' });
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `Kit_Admissao_${formData.name || 'Funcionario'}.zip`);
-        document.body.appendChild(link);
-        link.click(); link.remove();
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 6000);
-    } catch (error) {
-        alert("Erro no processamento. Verifique se os dados obrigatórios estão preenchidos.");
-    } finally {
-        setLoading(false);
+      const body = new FormData();
+      Object.entries(form).forEach(([k, v]) => body.append(k, v ?? ''));
+      body.set('employee_type', type);
+
+      const response = await axios.post('/api/generate', body, { responseType: 'blob' });
+
+      const filename = `Kit_Admissao_${form.name.trim().replace(/\s+/g, '_')}.zip`;
+      const url = URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setResult({ filename, url });
+      setStatus('done');
+    } catch (err) {
+      let message = 'Não foi possível gerar os documentos.';
+      // a resposta de erro vem como blob porque pedimos responseType blob
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          message = JSON.parse(text).error || message;
+        } catch { /* mantém a mensagem padrão */ }
+      }
+      setError(message);
+      setStatus('idle');
     }
   };
 
-  const config = {
-    regular: { 
-      title: "Contrato Regular", 
-      desc: "Admissão padrão CLT com kit completo de formulários", 
-      color: "text-blue-600 dark:text-blue-400", 
-      bg: "bg-blue-50 dark:bg-blue-950/60",
-      border: "border-blue-200 dark:border-blue-800/60"
-    },
-    motorista: { 
-      title: "Contrato Motorista", 
-      desc: "Admissão técnica com validação de CNH e Termo de Veículo", 
-      color: "text-amber-600 dark:text-amber-400", 
-      bg: "bg-amber-50 dark:bg-amber-950/60",
-      border: "border-amber-200 dark:border-amber-800/60"
-    },
-    aprendiz: { 
-      title: "Menor Aprendiz", 
-      desc: "Contrato especial de aprendizagem e termo educacional", 
-      color: "text-purple-600 dark:text-purple-400", 
-      bg: "bg-purple-50 dark:bg-purple-950/60",
-      border: "border-purple-200 dark:border-purple-800/60"
-    }
-  };
+  useEffect(() => () => result?.url && URL.revokeObjectURL(result.url), [result]);
 
-  const theme = config[type] || config.regular;
+  /* ---------------- Tela de sucesso ---------------- */
+
+  if (status === 'done' && result) {
+    return (
+      <>
+        <Toolbar title={meta.title} onOpenMobileNav={onOpenMobileNav} />
+        <div className="p-4 sm:p-6 pb-12 max-w-3xl mx-auto">
+          <Card className="p-8 text-center animate-pop-in">
+            <div className="flex justify-center mb-5">
+              <SuccessCheck label="Kit gerado com sucesso" />
+            </div>
+            <h2 className="font-display text-[26px] font-black text-ink animate-fade-up stagger" style={{ '--i': 4 }}>
+              Kit gerado
+            </h2>
+            <p className="text-[13px] text-muted mt-2 max-w-md mx-auto animate-fade-up stagger" style={{ '--i': 5 }}>
+              Os documentos de <strong className="text-ink">{form.name}</strong> foram preenchidos e
+              baixados como um único arquivo .zip.
+            </p>
+            <code className="inline-block mt-4 rounded-full border border-line bg-surface-2 px-4 py-2 font-mono text-[12px] font-semibold text-muted animate-fade-up stagger" style={{ '--i': 6 }}>
+              {result.filename}
+            </code>
+            <div className="flex items-center justify-center gap-2 mt-7 animate-fade-up stagger" style={{ '--i': 7 }}>
+              <Button
+                variant="outline"
+                icon={Download}
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = result.url;
+                  link.download = result.filename;
+                  link.click();
+                }}
+              >
+                Baixar de novo
+              </Button>
+              <Button
+                icon={Sparkles}
+                onClick={() => {
+                  setResult(null);
+                  setStatus('idle');
+                  setStep(0);
+                  setForm((f) => ({
+                    ...f, name: '', cpf: '', rg: '', orgao: '', estadocivil: '',
+                    cargo: '', salario: '', data_contratacao: '', horario: '', endereco: '',
+                    cnh: '', categoria: '',
+                  }));
+                  setAddress({ cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' });
+                  setCep({ loading: false, message: '', tone: '' });
+                }}
+              >
+                Novo colaborador
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </>
+    );
+  }
+
+  /* ---------------- Wizard ---------------- */
+
+  const anim = direction === 'next' ? 'animate-step-next' : 'animate-step-prev';
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in pb-12">
-      {/* Banner de Topo do Formulário (Card Premium) */}
-      <div className="bg-gradient-to-r from-white via-white to-slate-50 dark:from-navy-900 dark:via-navy-900 dark:to-navy-950 p-6 md:p-8 rounded-3xl shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] border border-slate-200/80 dark:border-navy-800/80 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className={`w-14 h-14 rounded-2xl ${theme.bg} ${theme.border} border flex items-center justify-center shadow-sm shrink-0`}>
-            <Building2 className={`w-7 h-7 ${theme.color}`} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${theme.bg} ${theme.color}`}>
-                Novo Documento
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-navy-900 dark:text-white tracking-tight">{theme.title}</h1>
-            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">{theme.desc}</p>
+    <>
+      <Toolbar
+        title={meta.title}
+        onOpenMobileNav={onOpenMobileNav}
+        actions={<Chip tone={meta.tone} dot>{meta.sub}</Chip>}
+      />
+
+      <div className="p-4 sm:p-6 pb-12 max-w-4xl mx-auto space-y-4">
+        {/* ---------- Indicador de progresso ---------- */}
+        <div className={cn(CARD, 'p-4 sm:p-5')}>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {STEPS.map((s, idx) => {
+              const StepIcon = s.icon;
+              const done = idx < step;
+              const active = idx === step;
+              return (
+                <React.Fragment key={s.id}>
+                  <button
+                    onClick={() => idx < step && go(idx)}
+                    disabled={idx > step}
+                    className={cn(
+                      'flex items-center gap-2.5 min-w-0 rounded-full transition-opacity duration-[180ms]',
+                      idx > step && 'opacity-45 cursor-default',
+                      idx < step && 'hover:opacity-70'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-2',
+                        'transition-[background-color,border-color,color,transform] duration-[260ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+                        done && 'bg-ok border-ok text-white',
+                        active && 'bg-navy-950 border-navy-950 text-white dark:bg-gold-400 dark:border-gold-400 dark:text-navy-950 scale-110',
+                        !done && !active && 'bg-surface border-line text-muted'
+                      )}
+                    >
+                      {done ? <Check className="w-4 h-4" /> : <StepIcon className="w-4 h-4" />}
+                    </span>
+                    <span className={cn('text-[13px] font-bold truncate hidden sm:block', active ? 'text-ink' : 'text-muted')}>
+                      {s.label}
+                    </span>
+                  </button>
+
+                  {idx < STEPS.length - 1 && (
+                    <div className="flex-1 h-[3px] rounded-full bg-surface-2 overflow-hidden min-w-[12px]">
+                      <div
+                        className="h-full rounded-full bg-ok transition-[width] duration-[420ms] ease-[cubic-bezier(0.05,0.7,0.1,1)]"
+                        style={{ width: idx < step ? '100%' : '0%' }}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
 
-        {success && (
-          <div className="animate-fade-in bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 px-5 py-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 flex items-center gap-3 shadow-sm">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <div>
-              <div className="font-bold text-xs">Download Concluído!</div>
-              <div className="text-[11px] text-emerald-600 dark:text-emerald-400">O arquivo ZIP foi gerado com sucesso.</div>
-            </div>
+        {error && (
+          <div className="flex items-start gap-2.5 rounded-[16px] border border-fail/25 bg-fail/8 px-4 py-3 text-[13px] text-fail animate-slide-down">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+            <span>{error}</span>
           </div>
         )}
-      </div>
-      
-      {/* Formulário Principal em Card Elegante */}
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-navy-900 rounded-3xl shadow-[0_4px_30px_-4px_rgba(15,23,42,0.08)] border border-slate-200/80 dark:border-navy-800/80 overflow-hidden">
-        
-        {/* Seção 1: Dados Pessoais */}
-        <div className="p-6 md:p-8 border-b border-slate-100 dark:border-navy-800">
-          <div className="flex items-center gap-2.5 mb-6 pb-2 border-b border-slate-100/70 dark:border-navy-800/70">
-            <div className="p-2 bg-navy-50 dark:bg-navy-800 text-navy-900 dark:text-gold-400 rounded-xl">
-              <User className="w-4 h-4 text-gold-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-navy-900 dark:text-white uppercase tracking-wider">
-                Dados do Colaborador
-              </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-400">Informações pessoais e de identificação civil</p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-            <Input col="md:col-span-6" label="Nome Completo" name="name" onChange={handleChange} required placeholder="Ex: Maria da Silva Santos" />
-            <Input col="md:col-span-3" label="CPF" name="cpf" onChange={handleChange} placeholder="000.000.000-00" />
-            <Input col="md:col-span-3" label="RG" name="rg" onChange={handleChange} placeholder="0.000.000" />
-            
-            <Input col="md:col-span-4" label="Nacionalidade" name="nacionalidade" onChange={handleChange} defaultValue="Brasileiro(a)" />
-            <Input col="md:col-span-4" label="Estado Civil" name="estadocivil" onChange={handleChange} placeholder="Solteiro(a), Casado(a)..." />
-            <Input col="md:col-span-4" label="Órgão Emissor" name="orgao" onChange={handleChange} placeholder="Ex: SSP/GO" />
-            
-            {/* Bloco de Endereço via CEP */}
-            <div className="md:col-span-12 pt-4 border-t border-slate-100 dark:border-navy-800">
-              <div className="flex items-center justify-between mb-3">
+        {/* ---------- Passo 1: Colaborador ---------- */}
+        {step === 0 && (
+          <div key="s0" className={cn(CARD, 'p-5 sm:p-7 space-y-6', anim)}>
+            <SectionHead icon={User} title="Dados do colaborador" sub="Identificação civil de quem está sendo admitido" />
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <Field
+                col="md:col-span-6"
+                label="Nome completo *"
+                value={form.name}
+                onChange={(e) => set('name', e.target.value)}
+                placeholder="Ex: Maria da Silva Santos"
+                className={cn(touched && problems.name && 'border-fail')}
+              />
+              <Field col="md:col-span-3" label="CPF" value={form.cpf} onChange={(e) => set('cpf', e.target.value)} placeholder="000.000.000-00" />
+              <Field col="md:col-span-3" label="RG" value={form.rg} onChange={(e) => set('rg', e.target.value)} placeholder="0.000.000" />
+
+              <Field col="md:col-span-4" label="Órgão emissor" value={form.orgao} onChange={(e) => set('orgao', e.target.value)} placeholder="Ex: SSP/GO" />
+              <Field col="md:col-span-4" label="Nacionalidade" value={form.nacionalidade} onChange={(e) => set('nacionalidade', e.target.value)} />
+              <Field col="md:col-span-4" label="Estado civil" value={form.estadocivil} onChange={(e) => set('estadocivil', e.target.value)} placeholder="Solteiro(a), Casado(a)..." />
+            </div>
+
+            {/* Endereço com CEP */}
+            <div className="pt-5 border-t border-line">
+              <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-gold-500" />
-                  <span className="text-xs font-bold text-navy-900 dark:text-white uppercase tracking-wider">
-                    Endereço Residencial (Consulta Automática por CEP)
+                  <MapPin className="w-4 h-4 text-accent" />
+                  <span className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-ink">
+                    Endereço residencial
                   </span>
                 </div>
-                {loadingCep && (
-                  <span className="text-xs text-gold-600 dark:text-gold-400 flex items-center gap-1.5 font-medium">
-                    <Loader2 size={13} className="animate-spin" /> Consultando ViaCEP...
+                {cep.loading && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-accent">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin-slow" /> Consultando...
                   </span>
                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* Campo CEP com busca */}
-                <div className="md:col-span-3">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    CEP
-                  </label>
+                <div className="md:col-span-3 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted ml-0.5">CEP</label>
                   <div className="relative">
-                    <input 
-                      type="text"
-                      name="cep"
-                      value={addressData.cep}
-                      onChange={handleCepChange}
+                    <input
+                      value={address.cep}
+                      onChange={(e) => handleCep(e.target.value)}
                       placeholder="00000-000"
                       maxLength={9}
-                      className="w-full p-3.5 pl-10 border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
+                      className="w-full rounded-[14px] border border-line bg-surface pl-9 pr-3.5 py-2.5 text-sm font-semibold text-ink placeholder:text-sand-400 placeholder:font-normal dark:placeholder:text-navy-500 outline-none transition-[border-color,box-shadow] duration-[180ms] focus:border-accent focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--app-accent)_16%,transparent)]"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      {loadingCep ? <Loader2 size={16} className="animate-spin text-gold-500" /> : <Search size={16} />}
-                    </div>
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                      {cep.loading ? <Loader2 className="w-4 h-4 animate-spin-slow text-accent" /> : <Search className="w-4 h-4" />}
+                    </span>
                   </div>
                 </div>
 
-                {/* Logradouro */}
-                <div className="md:col-span-6">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    Logradouro / Rua
-                  </label>
-                  <input 
-                    type="text"
-                    name="logradouro"
-                    value={addressData.logradouro}
-                    onChange={(e) => handleAddressFieldChange('logradouro', e.target.value)}
-                    placeholder="Ex: Av. Brasil, Rua das Flores"
-                    className="w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
-                  />
-                </div>
+                <Field col="md:col-span-6" label="Logradouro" value={address.logradouro} onChange={(e) => setAddressField('logradouro', e.target.value)} placeholder="Av. Brasil, Rua das Flores..." highlight={glow.logradouro} />
+                <Field col="md:col-span-3" label="Número" value={address.numero} onChange={(e) => setAddressField('numero', e.target.value)} placeholder="123 ou S/N" />
 
-                {/* Número */}
-                <div className="md:col-span-3">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    Número
-                  </label>
-                  <input 
-                    type="text"
-                    name="numero"
-                    value={addressData.numero}
-                    onChange={(e) => handleAddressFieldChange('numero', e.target.value)}
-                    placeholder="Ex: 123 ou S/N"
-                    className="w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
-                  />
-                </div>
+                <Field col="md:col-span-4" label="Complemento" value={address.complemento} onChange={(e) => setAddressField('complemento', e.target.value)} placeholder="Apto 102, Qd. 10" />
+                <Field col="md:col-span-4" label="Bairro" value={address.bairro} onChange={(e) => setAddressField('bairro', e.target.value)} placeholder="Setor Sul, Centro" highlight={glow.bairro} />
+                <Field col="md:col-span-3" label="Cidade" value={address.cidade} onChange={(e) => setAddressField('cidade', e.target.value)} placeholder="São Paulo" highlight={glow.cidade} />
+                <Field col="md:col-span-1" label="UF" value={address.uf} onChange={(e) => setAddressField('uf', e.target.value.toUpperCase().slice(0, 2))} placeholder="SP" maxLength={2} className="text-center uppercase" highlight={glow.uf} />
 
-                {/* Complemento */}
-                <div className="md:col-span-4">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    Complemento
-                  </label>
-                  <input 
-                    type="text"
-                    name="complemento"
-                    value={addressData.complemento}
-                    onChange={(e) => handleAddressFieldChange('complemento', e.target.value)}
-                    placeholder="Ex: Apto 102, Bloco B, Qd. 10"
-                    className="w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
-                  />
-                </div>
-
-                {/* Bairro */}
-                <div className="md:col-span-4">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    Bairro
-                  </label>
-                  <input 
-                    type="text"
-                    name="bairro"
-                    value={addressData.bairro}
-                    onChange={(e) => handleAddressFieldChange('bairro', e.target.value)}
-                    placeholder="Ex: Setor Sul, Centro"
-                    className="w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
-                  />
-                </div>
-
-                {/* Cidade */}
-                <div className="md:col-span-3">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    Cidade
-                  </label>
-                  <input 
-                    type="text"
-                    name="cidade"
-                    value={addressData.cidade}
-                    onChange={(e) => handleAddressFieldChange('cidade', e.target.value)}
-                    placeholder="Ex: Caldas Novas"
-                    className="w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
-                  />
-                </div>
-
-                {/* UF */}
-                <div className="md:col-span-1">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    UF
-                  </label>
-                  <input 
-                    type="text"
-                    name="uf"
-                    value={addressData.uf}
-                    onChange={(e) => handleAddressFieldChange('uf', e.target.value.toUpperCase().slice(0, 2))}
-                    placeholder="GO"
-                    maxLength={2}
-                    className="w-full p-3.5 text-center uppercase border border-slate-200 dark:border-navy-800 rounded-xl bg-white dark:bg-navy-900 text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm"
-                  />
-                </div>
-
-                {/* Feedback da busca */}
-                {cepMessage.text && (
-                  <div className={`md:col-span-12 text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 font-medium ${
-                    cepMessage.type === 'success' 
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60' 
-                      : cepMessage.type === 'warning'
-                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
-                      : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60'
-                  }`}>
-                    {cepMessage.type === 'warning' && <AlertCircle size={15} className="shrink-0" />}
-                    {cepMessage.type === 'success' && <CheckCircle2 size={15} className="shrink-0" />}
-                    <span>{cepMessage.text}</span>
+                {cep.message && (
+                  <div
+                    className={cn(
+                      'md:col-span-12 flex items-center gap-2 rounded-[12px] border px-3.5 py-2 text-[12px] font-medium animate-slide-down',
+                      cep.tone === 'ok' && 'border-ok/25 bg-ok/8 text-ok',
+                      cep.tone === 'warn' && 'border-warn/30 bg-warn/10 text-warn',
+                      cep.tone === 'info' && 'border-line bg-surface-2 text-muted'
+                    )}
+                  >
+                    {cep.tone === 'ok' && <CheckCircle2 className="w-4 h-4 shrink-0" />}
+                    {cep.tone === 'warn' && <AlertCircle className="w-4 h-4 shrink-0" />}
+                    {cep.message}
                   </div>
                 )}
 
-                {/* Endereço Completo formatado para os Contratos */}
-                <div className="md:col-span-12">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide block mb-1.5">
-                    Endereço Completo (Tag docx: <code className="text-gold-600 dark:text-gold-400 font-mono font-bold">{"{{ endereco_id }}"}</code>)
-                  </label>
-                  <input 
-                    type="text"
-                    name="endereco"
-                    value={formData.endereco || ''}
-                    onChange={handleChange}
-                    placeholder="Rua, Número, Bairro, Cidade - UF, CEP"
-                    className="w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl bg-slate-50/80 dark:bg-navy-950/60 text-navy-900 dark:text-white font-medium text-xs focus:border-gold-500 outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Seção 2: Dados Contratuais */}
-        <div className="p-6 md:p-8 bg-gradient-to-b from-slate-50/50 to-slate-50/20 dark:from-navy-950/40 dark:to-navy-950/20">
-          <div className="flex items-center gap-2.5 mb-6 pb-2 border-b border-slate-200/60 dark:border-navy-800/60">
-            <div className="p-2 bg-navy-50 dark:bg-navy-800 text-navy-900 dark:text-gold-400 rounded-xl">
-              <Wallet className="w-4 h-4 text-gold-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-navy-900 dark:text-white uppercase tracking-wider">
-                Dados Contratuais & Vínculo
-              </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-400">Definição salarial, empresa contratante e benefícios</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div className="md:col-span-6 space-y-5">
-              <Input label="Cargo Pretendido" name="cargo" onChange={handleChange} placeholder="Ex: Assistente Administrativo" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Salário Base" name="salario" value={formData.salario || ''} onChange={handlePriceMask} placeholder="R$ 0,00" />
-                <Input label="Data de Admissão" name="data_contratacao" type="date" onChange={handleChange} required />
-              </div>
-              <Input label="Horário de Trabalho" name="horario" onChange={handleChange} placeholder="Ex: 08:00 às 18:00 (1h de intervalo)" />
-            </div>
-
-            {/* Card Interno de Empresa Contratante */}
-            <div className="md:col-span-6 bg-white dark:bg-navy-950 p-6 rounded-2xl border border-slate-200/90 dark:border-navy-800 shadow-sm space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Empresa Contratante</label>
-                <select 
-                  name="empresa" 
-                  onChange={handleChange} 
-                  className="w-full p-3.5 bg-slate-50 dark:bg-navy-900 border border-slate-200 dark:border-navy-800 rounded-xl focus:ring-4 focus:ring-gold-500/15 focus:border-gold-500 outline-none transition-all text-sm font-semibold text-navy-900 dark:text-white" 
-                  required
-                >
-                  <option value="">Selecione a empresa...</option>
-                  {companies.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
-
-              <Input label="CNPJ Vinculado (Automático)" name="cnpj" value={formData.cnpj} readOnly bg="bg-slate-100/80 dark:bg-navy-900/80 text-slate-500 dark:text-slate-400 cursor-not-allowed font-mono" />
-              
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Setor de Atuação</label>
-                <input 
-                  name="setor" 
-                  onChange={handleChange} 
-                  placeholder="Ex: Operações / Recepção"
-                  className="w-full p-3 bg-white dark:bg-navy-900 border border-slate-200 dark:border-navy-800 text-navy-900 dark:text-white rounded-xl focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none text-sm font-medium" 
+                <Field
+                  col="md:col-span-12"
+                  label="Endereço completo (vai para a tag endereco_id)"
+                  value={form.endereco}
+                  onChange={(e) => set('endereco', e.target.value)}
+                  placeholder="Rua, número, bairro, cidade - UF, CEP"
+                  className="bg-surface-2 text-[12px]"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Utilizará sistema da empresa?</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {['sim', 'nao'].map(opt => (
-                    <label 
-                      key={opt} 
-                      className={`cursor-pointer border rounded-xl p-3 flex items-center justify-center gap-2 transition-all font-semibold text-xs ${formData.utiliza === opt ? 'bg-navy-900 dark:bg-gold-500 text-white dark:text-navy-950 border-navy-900 dark:border-gold-500 shadow-md ring-2 ring-gold-400/40' : 'bg-slate-50 dark:bg-navy-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-navy-800 border-slate-200 dark:border-navy-800'}`}
-                    >
-                      <input type="radio" name="utiliza" value={opt} checked={formData.utiliza === opt} onChange={handleChange} className="hidden" />
-                      <span>{opt === 'nao' ? 'Não' : 'Sim'}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Condicional Motorista (Card de Habilitação) */}
-        {type === 'motorista' && (
-          <div className="p-6 md:p-8 border-t border-slate-100 dark:border-navy-800 bg-amber-50/40 dark:bg-amber-950/20">
-            <div className="flex items-center gap-2.5 mb-6">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 rounded-xl">
-                <Car className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">
-                  Habilitação & CNH Obrigatória
-                </h3>
-                <p className="text-xs text-amber-700/80 dark:text-amber-400/80">Dados requeridos para validação de motorista profissional</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Input label="Número de Registro da CNH" name="cnh" onChange={handleChange} placeholder="00000000000" />
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Categoria da CNH</label>
-                <select 
-                  name="categoria" 
-                  onChange={handleChange} 
-                  className="w-full p-3.5 bg-white dark:bg-navy-900 border border-slate-200 dark:border-navy-800 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm font-semibold text-navy-900 dark:text-white"
-                >
-                  <option value="">Selecione a categoria...</option>
-                  {['A','B','AB','C','D','E','AD','AE'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
               </div>
             </div>
           </div>
         )}
 
-        {/* Footer do Card com Botão de Ação */}
-        <div className="p-6 md:p-8 bg-slate-50 dark:bg-navy-950 border-t border-slate-100 dark:border-navy-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-400 font-medium text-center sm:text-left">
-            <FileCheck size={16} className="text-emerald-500 shrink-0" />
-            <span>Os arquivos preenchidos serão compactados em um arquivo <strong>.ZIP</strong> para download.</span>
+        {/* ---------- Passo 2: Contrato ---------- */}
+        {step === 1 && (
+          <div key="s1" className={cn('space-y-4', anim)}>
+            <div className={cn(CARD, 'p-5 sm:p-7 space-y-6')}>
+              <SectionHead icon={Wallet} title="Dados contratuais" sub="Cargo, remuneração e jornada" />
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <Field col="md:col-span-6" label="Cargo" value={form.cargo} onChange={(e) => set('cargo', e.target.value)} placeholder="Ex: Assistente Administrativo" />
+                <Field col="md:col-span-6" label="Setor" value={form.setor} onChange={(e) => set('setor', e.target.value)} placeholder="Ex: Operações / Recepção" />
+
+                <div className="md:col-span-6">
+                  <Field
+                    label="Salário base"
+                    value={form.salario}
+                    onChange={(e) => handleSalario(e.target.value)}
+                    placeholder="R$ 0,00"
+                    inputMode="numeric"
+                  />
+                  {/* Prévia por extenso em tempo real */}
+                  <div
+                    className={cn(
+                      'overflow-hidden transition-[max-height,opacity] duration-[260ms] ease-[cubic-bezier(0.05,0.7,0.1,1)]',
+                      extenso ? 'max-h-16 opacity-100 mt-2' : 'max-h-0 opacity-0'
+                    )}
+                  >
+                    <p className="text-[11px] text-muted leading-snug first-letter:uppercase">
+                      {extenso}
+                    </p>
+                  </div>
+                </div>
+
+                <Field
+                  col="md:col-span-6"
+                  label="Data de admissão *"
+                  type="date"
+                  value={form.data_contratacao}
+                  onChange={(e) => set('data_contratacao', e.target.value)}
+                  className={cn(touched && problems.data_contratacao && 'border-fail')}
+                />
+
+                <Field col="md:col-span-12" label="Horário de trabalho" value={form.horario} onChange={(e) => set('horario', e.target.value)} placeholder="Ex: 08:00 às 18:00, com 1h de intervalo" />
+              </div>
+            </div>
+
+            <div className={cn(CARD, 'p-5 sm:p-7 space-y-6')}>
+              <SectionHead icon={Building2} title="Vínculo e benefícios" sub="Empresa contratante e vale-transporte" />
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <SelectField
+                  col="md:col-span-7"
+                  label="Empresa contratante *"
+                  value={form.empresa}
+                  onChange={(e) => handleCompany(e.target.value)}
+                  className={cn(touched && problems.empresa && 'border-fail')}
+                >
+                  <option value="">Selecione a empresa...</option>
+                  {companies.map((c) => (
+                    <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </SelectField>
+
+                <Field
+                  col="md:col-span-5"
+                  label="CNPJ (automático)"
+                  value={form.cnpj}
+                  readOnly
+                  placeholder="Selecione a empresa"
+                  className="font-mono bg-surface-2 text-muted cursor-not-allowed"
+                  highlight={cnpjGlow}
+                />
+
+                <div className="md:col-span-6 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted ml-0.5">
+                    Transporte da empresa
+                  </label>
+                  <Segmented
+                    value={form.utiliza}
+                    onChange={(v) => set('utiliza', v)}
+                    options={[{ value: 'sim', label: 'Vai utilizar' }, { value: 'nao', label: 'Não utiliza' }]}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco condicional do motorista — entra expandindo */}
+            {type === 'motorista' && (
+              <div className={cn(CARD, 'p-5 sm:p-7 space-y-6 border-cat-motorista/30 animate-fade-up')}>
+                <SectionHead icon={Car} title="Habilitação" sub="Obrigatório para motoristas profissionais" tone="motorista" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Número de registro da CNH" value={form.cnh} onChange={(e) => set('cnh', e.target.value)} placeholder="00000000000" />
+                  <SelectField label="Categoria" value={form.categoria} onChange={(e) => set('categoria', e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {['A', 'B', 'AB', 'C', 'D', 'E', 'AD', 'AE'].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </SelectField>
+                </div>
+              </div>
+            )}
           </div>
+        )}
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-navy-950 via-navy-900 to-navy-800 dark:from-navy-800 dark:via-navy-700 dark:to-navy-800 hover:from-gold-500 hover:to-gold-600 dark:hover:from-gold-500 dark:hover:to-gold-600 text-white rounded-2xl font-bold text-base shadow-lg hover:shadow-glow hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed justify-center"
-          >
-            {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5 text-gold-400" />}
-            <span>{loading ? 'Processando Documentos...' : 'Gerar Kit de Documentos'}</span>
-            {!loading && <ArrowRight size={18} className="text-white/70" />}
-          </button>
-        </div>
+        {/* ---------- Passo 3: Revisão ---------- */}
+        {step === 2 && (
+          <div key="s2" className={cn('space-y-4', anim)}>
+            {Object.keys(problems).length > 0 && (
+              <div className={cn(CARD, 'p-5 border-fail/30')}>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="w-4 h-4 text-fail" />
+                  <span className="text-[13px] font-bold text-ink">Faltam campos obrigatórios</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.values(problems).map((p) => (
+                    <button
+                      key={p.label}
+                      onClick={() => go(p.step)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-fail/25 bg-fail/8 px-3 py-1.5 text-[11px] font-bold text-fail hover:bg-fail/12"
+                    >
+                      {p.label}
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-      </form>
+            <div className={cn(CARD, 'overflow-hidden')}>
+              <div className="flex items-center gap-3 px-5 sm:px-7 py-5 border-b border-line">
+                <span
+                  className="w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `color-mix(in oklab, ${meta.color} 14%, transparent)`, color: meta.color }}
+                >
+                  <Icon className="w-5 h-5" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-[17px] font-bold text-ink truncate">{form.name || 'Colaborador sem nome'}</h2>
+                  <p className="text-[12px] text-muted truncate">
+                    {[form.cargo, form.empresa].filter(Boolean).join(' · ') || 'Cargo e empresa a definir'}
+                  </p>
+                </div>
+              </div>
+
+              <dl className="divide-y divide-line">
+                <Row label="CPF / RG" value={[form.cpf, form.rg].filter(Boolean).join(' · ')} />
+                <Row label="Órgão emissor" value={form.orgao} />
+                <Row label="Nacionalidade / estado civil" value={[form.nacionalidade, form.estadocivil].filter(Boolean).join(' · ')} />
+                <Row label="Endereço" value={form.endereco} />
+                <Row label="Setor" value={form.setor} />
+                <Row label="Salário" value={form.salario && `${form.salario} — ${extenso}`} />
+                <Row label="Admissão" value={form.data_contratacao && new Date(`${form.data_contratacao}T12:00:00`).toLocaleDateString('pt-BR', { dateStyle: 'long' })} />
+                <Row label="Horário" value={form.horario} />
+                <Row label="CNPJ" value={form.cnpj} mono />
+                <Row label="Transporte da empresa" value={form.utiliza === 'sim' ? 'Vai utilizar' : 'Não utiliza'} />
+                {type === 'motorista' && (
+                  <Row label="CNH" value={[form.cnh, form.categoria && `categoria ${form.categoria}`].filter(Boolean).join(' · ')} />
+                )}
+              </dl>
+            </div>
+
+            <div className={cn(CARD, 'p-5 sm:p-7')}>
+              {status === 'generating' ? (
+                <div className="text-center py-4">
+                  <div className="flex items-center justify-center gap-2.5 mb-4">
+                    <Loader2 className="w-5 h-5 text-accent animate-spin-slow" />
+                    <span className="text-[14px] font-bold text-ink">Preenchendo os templates...</span>
+                  </div>
+                  <div className="h-1.5 max-w-sm mx-auto rounded-full bg-surface-2 overflow-hidden">
+                    <div className="skeleton h-full w-full" />
+                  </div>
+                  <p className="text-[12px] text-muted mt-4">
+                    O servidor está injetando os dados em cada arquivo .docx e compactando o kit.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <p className="text-[12px] text-muted text-center sm:text-left max-w-sm">
+                    Todos os templates da categoria <strong className="text-ink">{meta.title.toLowerCase()}</strong> serão
+                    preenchidos e entregues num único arquivo .zip.{' '}
+                    <button onClick={onOpenTags} className="text-accent font-semibold hover:underline">
+                      Ver as tags usadas
+                    </button>
+                  </p>
+                  <Button size="lg" icon={Sparkles} onClick={generate} className="w-full sm:w-auto shrink-0">
+                    Gerar kit de documentos
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ---------- Navegação ---------- */}
+        {status !== 'generating' && (
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="ghost" icon={ArrowLeft} onClick={() => go(step - 1)} disabled={step === 0}>
+              Voltar
+            </Button>
+
+            {step < 2 ? (
+              <Button onClick={advance}>
+                Continuar
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            ) : (
+              <span className="text-[11px] text-muted">
+                Passo {step + 1} de {STEPS.length}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ---------------- Auxiliares ---------------- */
+
+function SectionHead({ icon: Icon, title, sub, tone }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={cn(
+          'w-9 h-9 rounded-[12px] flex items-center justify-center shrink-0',
+          tone === 'motorista' ? 'bg-cat-motorista/12 text-cat-motorista' : 'tint-accent text-accent'
+        )}
+      >
+        <Icon className="w-4 h-4" />
+      </span>
+      <div>
+        <h3 className="text-[13px] font-extrabold uppercase tracking-[0.06em] text-ink">{title}</h3>
+        <p className="text-[12px] text-muted">{sub}</p>
+      </div>
     </div>
   );
 }
 
-const Input = ({ label, col = "", bg = "bg-white dark:bg-navy-900", ...props }) => (
-  <div className={`flex flex-col gap-1.5 ${col}`}>
-    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-0.5 tracking-wide">{label}</label>
-    <input 
-      className={`w-full p-3.5 border border-slate-200 dark:border-navy-800 rounded-xl ${bg} text-navy-900 dark:text-white font-semibold placeholder:text-slate-300 dark:placeholder:text-slate-600 placeholder:font-normal focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 outline-none transition-all duration-200 text-sm`} 
-      {...props} 
-    />
-  </div>
-);
+function Row({ label, value, mono }) {
+  return (
+    <div className="flex items-baseline gap-4 px-5 sm:px-7 py-3">
+      <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted w-44 shrink-0">{label}</dt>
+      <dd className={cn('text-[13px] font-semibold text-ink min-w-0 break-words', mono && 'font-mono text-[12px]', !value && 'text-muted font-normal italic')}>
+        {value || 'não informado'}
+      </dd>
+    </div>
+  );
+}

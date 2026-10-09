@@ -23,6 +23,12 @@ from config import settings
 
 app = Flask(__name__, static_folder=settings.STATIC_FOLDER, static_url_path='/')
 app.secret_key = settings.SECRET_KEY
+
+# "Manter-me conectado": sem isto a sessão do Flask é de navegador
+# (morre ao fechar a janela). Com session.permanent = True no login,
+# o cookie passa a valer por este período.
+app.permanent_session_lifetime = timedelta(days=30)
+
 CORS(app, supports_credentials=True)
 
 @app.before_request
@@ -65,17 +71,9 @@ def init_db():
         db.close()
 
 DEFAULT_COMPANIES = [
-    ("LAGOA QUENTE HJR CONSTRUTORA E INCORPORADORA LTDA", "23.791.867/0001-08"),
-    ("LAGOA THERMAS CLUBE TURISMO LAZER E ECOLOGIA", "05.620.609/0001-87"),
-    ("LAGOA QUENTE BAR E RESTAURANTE LTDA", "07.894.032/0001-27"),
-    ("LAGOA QUENTE RESTAURANTE ME", "21.827.890/0001-80"),
-    ("LAGOA FLAT BAR E RESTAURANTE LTDA", "14.750.870/0001-92"),
-    ("JARDINS DA LAGOA CONDO-RESORT", "43.736.326/0001-10"), 
-    ("CIA MELHORAMENTO DE CALDAS NOVAS", "01.638.832/0001-09"),
-    ("LAGOA QUENTE RESTAURANTE LTDA", "21.827.890/0004-22"),
-    ("LAGOA ECO TOWERS", "45.736.654/0001-16"), 
-    ("GESTÃO ECO - LAGOA GESTÃO ECO TOWERS LTDA", "45.736.654/0001-16"),
-    ("GESTÃO JARDINS- LAGOA GESTÃO JARDINS LTDA", "43.736.326/0001-10")
+    ("EMPRESA EXEMPLO 1 LTDA", "11.222.333/0001-44"),
+    ("EMPRESA MODELO SERVICOS S.A.", "55.666.777/0001-88"),
+    ("HOLDING EXEMPLO BRASIL LTDA", "99.888.777/0001-00")
 ]
 
 def migrate_db():
@@ -410,6 +408,10 @@ def api_login():
     if not user or not check_password_hash(user["password_hash"], password):
         return jsonify({"error": "Credenciais inválidas. Verifique seu usuário e senha."}), 401
 
+    # remember chega do checkbox "Manter-me conectado" no login.
+    # A senha nunca é guardada pelo app: quem salva é o gerenciador
+    # do navegador, via os atributos autocomplete do formulário.
+    session.permanent = bool(data.get("remember"))
     session["user_id"] = user["id"]
     session["username"] = user["username"]
 

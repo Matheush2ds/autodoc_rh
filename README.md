@@ -96,8 +96,8 @@ Para que o sistema consiga injetar as informações nos documentos, você deve c
 **Campos Específicos**
 - `{{ cnh_id }}` - Número da CNH (Motoristas)
 - `{{ categoria_id }}` - Categoria da CNH (Motoristas)
-- `{{ utiliza_id }}` - Marca um "X" se quiser Vale Transporte
-- `{{ nutiliza_id }}` - Marca um "X" se NÃO quiser Vale Transporte
+- `{{ utiliza_id }}` - Marca um "X" se for usar o transporte da empresa
+- `{{ nutiliza_id }}` - Marca um "X" se NÃO for usar o transporte da empresa
 
 ---
 
@@ -121,4 +121,4 @@ autodoc_rh/
 ---
 
 ## Licença
-Projeto de propriedade exclusiva para uso corporativo interno.
+Distribuído sob a licença MIT. Consulte o arquivo `LICENSE` para mais informações.

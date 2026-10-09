@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.local
+**/node_modules
+**/__pycache__
+*.pyc
+generated_docs/
+data/
+log.db
+docker-compose*.yml
+README.md

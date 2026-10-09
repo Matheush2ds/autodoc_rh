@@ -1,119 +1,182 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+
+import Login from './components/Login';
+import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
-import Header from './components/Header';
+import TagsModal from './components/TagsModal';
+
 import Dashboard from './components/Dashboard';
 import DocumentForm from './components/DocumentForm';
-import Settings from './components/Settings';
-import Login from './components/Login';
+import History from './components/History';
+import Companies from './components/Companies';
+import Users from './components/Users';
 
-function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [employeeType, setEmployeeType] = useState('regular');
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+const USER_KEY = 'autodoc_user';
+const THEME_KEY = 'autodoc_theme';
 
-  // Usuário autenticado com persistência no localStorage
-  const [currentUser, setCurrentUser] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('autodoc_user');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return null;
-        }
-      }
+const SEARCH_PLACEHOLDER = {
+  history: 'Buscar no histórico...',
+  companies: 'Buscar empresa...',
+  users: 'Buscar usuário...',
+};
+
+export default function App() {
+  /* ---------------- Sessão ---------------- */
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+    } catch {
+      return null;
     }
-    return null;
   });
+  const [checking, setChecking] = useState(true);
 
-  // Inicialização do Tema Claro / Escuro com persistência
+  useEffect(() => {
+    let alive = true;
+    axios
+      .get('/api/auth/me')
+      .then(({ data }) => {
+        if (!alive) return;
+        setUser(data.user);
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setUser(null);
+        localStorage.removeItem(USER_KEY);
+      })
+      .finally(() => alive && setChecking(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /* ---------------- Tema ---------------- */
   const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('autodoc_theme');
-      if (savedTheme) return savedTheme;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'light';
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('autodoc_theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  // Revelação circular a partir do botão, em vez do flash.
+  const toggleTheme = useCallback((event) => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    const root = document.documentElement;
+
+    if (event?.clientX !== undefined) {
+      root.style.setProperty('--vt-x', `${event.clientX}px`);
+      root.style.setProperty('--vt-y', `${event.clientY}px`);
+    }
+
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!document.startViewTransition || reduce) {
+      setTheme(next);
+      return;
+    }
+    document.startViewTransition(() => {
+      // flushSync não é necessário: o React 18 aplica a classe no efeito,
+      // então trocamos a classe aqui e deixamos o estado seguir.
+      root.classList.toggle('dark', next === 'dark');
+      setTheme(next);
+    });
+  }, [theme]);
+
+  /* ---------------- Navegação ---------------- */
+  const [route, setRoute] = useState('dashboard');
+  const [query, setQuery] = useState('');
+  const [mobileNav, setMobileNav] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+
+  const navigate = (next) => {
+    setRoute(next);
+    setQuery('');
   };
 
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    localStorage.setItem('autodoc_user', JSON.stringify(user));
+  /* ---------------- Auth handlers ---------------- */
+  const handleLogin = (u) => {
+    setUser(u);
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+    setRoute('dashboard');
   };
 
   const handleLogout = async () => {
     try {
       await axios.post('/api/auth/logout');
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* sessão já pode ter expirado no servidor */
     }
-    setCurrentUser(null);
-    localStorage.removeItem('autodoc_user');
-    setActiveTab('dashboard');
+    setUser(null);
+    localStorage.removeItem(USER_KEY);
+    setRoute('dashboard');
   };
 
-  const handleNavigate = (tab, type = 'regular') => {
-    setActiveTab(tab);
-    if(type) setEmployeeType(type);
-  };
-
-  // Se o usuário não estiver autenticado, exibe a tela de Login
-  if (!currentUser) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+  /* ---------------- Render ---------------- */
+  if (!user) {
+    if (checking) {
+      return (
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-[3px] border-line border-t-accent animate-spin-slow" />
+        </div>
+      );
+    }
+    return <Login onLoginSuccess={handleLogin} />;
   }
 
+  const formType = route.startsWith('form:') ? route.split(':')[1] : null;
+
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-[#0a0f1d] font-sans text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-300">
-      {/* Sidebar */}
-      <Sidebar 
-        activeTab={activeTab} 
-        currentType={employeeType} 
-        onNavigate={handleNavigate}
-        isMobileOpen={isMobileOpen}
-        setIsMobileOpen={setIsMobileOpen}
+    <div className="h-screen flex flex-col bg-bg text-ink overflow-hidden">
+      <TopBar
+        user={user}
         theme={theme}
         onToggleTheme={toggleTheme}
-        currentUser={currentUser}
+        onOpenTags={() => setTagsOpen(true)}
         onLogout={handleLogout}
       />
-      
-      {/* Painel Principal com Header flush */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-        <Header 
-          activeTab={activeTab} 
-          currentType={employeeType}
-          onToggleMobile={() => setIsMobileOpen(!isMobileOpen)}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          currentUser={currentUser}
-          onLogout={handleLogout}
+
+      <div className="flex-1 flex min-h-0">
+        <Sidebar
+          route={route}
+          onNavigate={navigate}
+          query={query}
+          onQuery={setQuery}
+          searchPlaceholder={SEARCH_PLACEHOLDER[route] || 'Buscar...'}
+          onOpenTags={() => setTagsOpen(true)}
+          mobileOpen={mobileNav}
+          onCloseMobile={() => setMobileNav(false)}
         />
 
-        <main className="flex-1 overflow-auto p-4 sm:p-6 md:p-8 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'form' && <DocumentForm type={employeeType} />}
-            {activeTab === 'settings' && <Settings currentUser={currentUser} />}
-          </div>
+        <main className="flex-1 min-w-0 overflow-y-auto scroll-slim">
+          {route === 'dashboard' && (
+            <Dashboard onNavigate={navigate} onOpenMobileNav={() => setMobileNav(true)} />
+          )}
+          {formType && (
+            <DocumentForm
+              key={formType}
+              type={formType}
+              onOpenMobileNav={() => setMobileNav(true)}
+              onOpenTags={() => setTagsOpen(true)}
+            />
+          )}
+          {route === 'history' && (
+            <History query={query} onNavigate={navigate} onOpenMobileNav={() => setMobileNav(true)} />
+          )}
+          {route === 'companies' && (
+            <Companies query={query} onOpenMobileNav={() => setMobileNav(true)} />
+          )}
+          {route === 'users' && (
+            <Users query={query} currentUser={user} onOpenMobileNav={() => setMobileNav(true)} />
+          )}
         </main>
       </div>
+
+      <TagsModal open={tagsOpen} onClose={() => setTagsOpen(false)} />
     </div>
   );
 }
-
-export default App;

@@ -10,11 +10,24 @@ node_modules/
 # Documentos gerados pelo usuário
 generated_docs/
 app/generated_docs/
+*.zip
 
 # Banco de dados (apenas o schema.sql deve ser rastreado)
+data/
+*.db
 log.db
 app/log.db
 
 # Arquivos de ambiente
 .env
 .env.local
+
+# Modelos Word do usuário (evita versionar contratos reais da empresa)
+*.docx
+~$*.docx
+!docx_templates/**/.gitkeep
+!docx_templates/**/README.md
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

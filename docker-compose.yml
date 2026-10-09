@@ -1,19 +1,33 @@
+# Compose de PRODUCAO (usado pelo Coolify).
+# Nao adicione bind mounts de codigo aqui: o codigo vem de dentro da imagem.
+# Para desenvolvimento local use:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 services:
   app:
     build: .
-    container_name: rh_app_teste
-    ports:
-      - "5000:5000"
-    volumes:
-      # Mapeia o código do backend para desenvolvimento em tempo real
-      - ./app:/app/app
-      # Mapeia a pasta de templates
-      - ./docx_templates:/app/docx_templates
-      # Mapeia a pasta de documentos gerados para o seu Windows
-      - ./generated_docs:/app/generated_docs
-      # Mapeia o banco de dados para não perder dados ao reiniciar
-      - ./log.db:/app/log.db
-      # Mapeia o build do frontend para atualizações em tempo real
-      - ./frontend/dist:/app/frontend/dist
+    restart: unless-stopped
+    # O proxy do Coolify roteia o dominio para esta porta interna.
+    # Se quiser acessar direto pela porta do host, descomente "ports" abaixo.
+    expose:
+      - "5000"
+    # ports:
+    #   - "5000:5000"
     environment:
-      - FLASK_ENV=development
+      - TEMPLATES_DIR=/app/docx_templates
+      - OUTPUT_DIR=/app/generated_docs
+      - DB_FILE=/app/data/log.db
+      - SECRET_KEY=${SECRET_KEY:-troque-este-segredo}
+    volumes:
+      # Apenas dados persistentes (volumes nomeados, gerenciados pelo Docker).
+      - autodoc_data:/app/data
+      - autodoc_docs:/app/generated_docs
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:5000/')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  autodoc_data:
+  autodoc_docs:

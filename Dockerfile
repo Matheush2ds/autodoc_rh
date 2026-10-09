@@ -28,8 +28,8 @@ COPY app/ ./app/
 # Copia a pasta de templates da sua máquina para dentro do container
 COPY docx_templates/ ./docx_templates/
 
-# Cria pasta de saída
-RUN mkdir -p generated_docs
+# Cria pastas de dados (montadas como volumes em producao)
+RUN mkdir -p /app/generated_docs /app/data
 
 # Copia o build do React
 COPY --from=frontend-builder /app_frontend/dist ./frontend/dist
@@ -37,7 +37,8 @@ COPY --from=frontend-builder /app_frontend/dist ./frontend/dist
 # Variáveis de Ambiente
 ENV TEMPLATES_DIR=/app/docx_templates
 ENV OUTPUT_DIR=/app/generated_docs
-ENV DB_FILE=/app/log.db
+ENV DB_FILE=/app/data/log.db
+ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=app/app.py
 
 EXPOSE 5000

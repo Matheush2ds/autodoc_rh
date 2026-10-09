@@ -1,0 +1,18 @@
+# Override de DESENVOLVIMENTO local (nao usado pelo Coolify).
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  app:
+    container_name: rh_app_teste
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      # Codigo em tempo real
+      - ./app:/app/app
+      - ./docx_templates:/app/docx_templates
+      - ./frontend/dist:/app/frontend/dist
+      # Dados em pastas locais (nao arquivos soltos, senao o Docker cria diretorio)
+      - ./generated_docs:/app/generated_docs
+      - ./data:/app/data
